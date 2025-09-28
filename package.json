@@ -9,6 +9,7 @@
     "test": "jest",
     "migrate": "node scripts/migrate.js",
     "railway-migrate": "node scripts/railway-migrate.js",
+    "simple-migrate": "node scripts/simple-migrate.js",
     "check-env": "node scripts/check-env.js",
     "setup": "npm install && npm run check-env && npm run migrate",
     "deploy-setup": "node scripts/deploy-setup.js",

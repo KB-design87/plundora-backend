@@ -23,11 +23,17 @@ async function runMigrations() {
     const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
-    // Split into individual statements
+    // Split into individual statements more carefully
     const statements = schema
       .split(';')
       .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+      .filter(stmt => {
+        // Remove comments and empty lines
+        const cleanStmt = stmt.replace(/--.*$/gm, '').trim();
+        return cleanStmt.length > 0 && 
+               !cleanStmt.startsWith('--') && 
+               !cleanStmt.match(/^\s*$/);
+      });
     
     console.log(`📄 Found ${statements.length} SQL statements to execute`);
     
