@@ -4,7 +4,7 @@
   "description": "Backend API for Plundora marketplace platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/start-with-migration.js",
     "dev": "nodemon server.js",
     "test": "jest",
     "migrate": "node scripts/migrate.js",
@@ -13,7 +13,11 @@
     "check-env": "node scripts/check-env.js",
     "setup": "npm install && npm run check-env && npm run migrate",
     "deploy-setup": "node scripts/deploy-setup.js",
-    "health": "curl http://localhost:3001/health || node -e \"console.log('Server not running or health check failed')\""
+    "health": "curl http://localhost:3001/health || node -e \"console.log('Server not running or health check failed')\"",
+    "railway-debug": "node scripts/railway-debug.js",
+    "test-api": "node scripts/test-api.js",
+    "test-database": "node scripts/test-database.js",
+    "migrate-direct": "node scripts/railway-migrate-direct.js"
   },
   "keywords": [
     "marketplace",
