@@ -4,31 +4,18 @@ const path = require('path');
 console.log('🚀 Starting Plundora Backend with Migration Check...');
 
 async function runMigration() {
-  console.log('📊 Checking if migrations need to be run...');
+  console.log('📊 Running database migrations...');
   
-  return new Promise((resolve, reject) => {
-    const migrateProcess = spawn('npm', ['run', 'migrate-direct'], {
-      stdio: 'inherit',
-      shell: true
-    });
-    
-    migrateProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log('✅ Migrations completed successfully');
-        resolve();
-      } else {
-        console.log('⚠️  Migration completed with warnings (code:', code, ')');
-        // Don't fail the startup if migrations have warnings
-        resolve();
-      }
-    });
-    
-    migrateProcess.on('error', (error) => {
-      console.log('⚠️  Migration error (continuing startup):', error.message);
-      // Don't fail the startup if migrations fail
-      resolve();
-    });
-  });
+  try {
+    // Import and run the migration directly
+    const migrationScript = require('./railway-migrate-direct.js');
+    console.log('✅ Migration script loaded');
+    return Promise.resolve();
+  } catch (error) {
+    console.log('⚠️  Migration error (continuing startup):', error.message);
+    // Don't fail the startup if migrations fail
+    return Promise.resolve();
+  }
 }
 
 async function startServer() {

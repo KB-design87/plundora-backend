@@ -7,6 +7,16 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Run migrations on startup if in production
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+  console.log('🚀 Running database migrations on startup...');
+  try {
+    require('./scripts/railway-migrate-direct.js');
+  } catch (error) {
+    console.log('⚠️  Migration warning (continuing startup):', error.message);
+  }
+}
+
 // Import routes
 const salesRoutes = require('./routes/sales');
 const authRoutes = require('./routes/auth');
