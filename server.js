@@ -7,13 +7,17 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// Run migrations on startup if in production
+// Check environment and run migrations on startup
+console.log('🚀 Starting Plundora Backend...');
+require('./scripts/check-railway-env.js');
+
 if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-  console.log('🚀 Running database migrations on startup...');
+  console.log('🚀 Testing database connection and running migrations...');
   try {
+    require('./scripts/test-railway-db.js');
     require('./scripts/railway-migrate-direct.js');
   } catch (error) {
-    console.log('⚠️  Migration warning (continuing startup):', error.message);
+    console.log('⚠️  Database setup warning (continuing startup):', error.message);
   }
 }
 

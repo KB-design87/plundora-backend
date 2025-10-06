@@ -17,7 +17,8 @@
     "railway-debug": "node scripts/railway-debug.js",
     "test-api": "node scripts/test-api.js",
     "test-database": "node scripts/test-database.js",
-    "migrate-direct": "node scripts/railway-migrate-direct.js"
+    "migrate-direct": "node scripts/railway-migrate-direct.js",
+    "test-railway-db": "node scripts/test-railway-db.js"
   },
   "keywords": [
     "marketplace",
