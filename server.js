@@ -9,17 +9,25 @@ require('dotenv').config();
 
 // Check environment and run migrations on startup
 console.log('🚀 Starting Plundora Backend...');
-require('./scripts/check-railway-env.js');
 
-if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-  console.log('🚀 Testing database connection and running migrations...');
+// Run diagnostics asynchronously to prevent server crashes
+setTimeout(() => {
   try {
-    require('./scripts/test-railway-db.js');
-    require('./scripts/railway-migrate-direct.js');
+    require('./scripts/check-railway-env.js');
+    
+    if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+      console.log('🚀 Testing database connection and running migrations...');
+      try {
+        require('./scripts/test-railway-db.js');
+        require('./scripts/railway-migrate-direct.js');
+      } catch (error) {
+        console.log('⚠️  Database setup warning (continuing startup):', error.message);
+      }
+    }
   } catch (error) {
-    console.log('⚠️  Database setup warning (continuing startup):', error.message);
+    console.log('⚠️  Diagnostic warning (continuing startup):', error.message);
   }
-}
+}, 1000); // Run after 1 second
 
 // Import routes
 const salesRoutes = require('./routes/sales');
