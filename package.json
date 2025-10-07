@@ -4,7 +4,7 @@
   "description": "Backend API for Plundora marketplace platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node test-deploy.js",
     "dev": "nodemon server.js",
     "test": "jest",
     "migrate": "node scripts/migrate.js",
