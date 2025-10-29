@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -5,7 +6,6 @@ const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
 
 // Simple startup
 console.log('🚀 Starting Plundora Backend...');
@@ -99,7 +99,7 @@ app.use(cookieParser());
 app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+const healthCheckHandler = async (req, res) => {
   try {
     const db = require('./db/connection');
     const dbHealth = await db.healthCheck();
@@ -122,7 +122,10 @@ app.get('/health', async (req, res) => {
       databaseError: error.message
     });
   }
-});
+};
+
+app.get('/health', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
 
 // API routes
 app.use('/api/auth', authLimiter, authRoutes);

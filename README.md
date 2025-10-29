@@ -308,6 +308,16 @@ POST /api/sales
 
 ## Deployment
 
+### Static Frontend (GoDaddy or any shared host)
+
+1. Generate production assets:
+   ```bash
+   npm run build:frontend
+   ```
+2. Upload everything inside `plundora-frontend/dist` to your hosting document root (for GoDaddy/cPanel this is usually `public_html`).
+3. Replace the existing `index.html`, `layout-styles.css`, `ads.txt`, `404.shtml`, `cgi-bin/`, and `ht.access/` with the freshly built files.
+4. Repeat the build/upload whenever you rotate API keys or deploy new frontend changes.
+
 ### Deploy to Heroku
 
 1. **Create a Heroku account**

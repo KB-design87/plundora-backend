@@ -1,0 +1,2768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Plundora - Discover Hidden Treasures Nationwide</title>
+    
+    <!-- iOS Specific Fixes -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-touch-fullscreen" content="yes">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Find yard sales, estate sales, and antique stores near you. List your sale to reach treasure hunters across all 50 states.">
+    <meta name="keywords" content="yard sales, estate sales, garage sales, antique stores, treasures, vintage">
+    
+    <!-- Google AdSense Verification -->
+    <meta name="google-adsense-account" content="ca-pub-9897864837897654">
+    
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Google Places API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{GOOGLE_MAPS_API_KEY}}&libraries=places"></script>
+    
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9897864837897654"
+         crossorigin="anonymous"></script>
+    
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #45B7D1;
+            --dark: #2C3E50;
+            --gold: #FFD93D;
+            --purple: #6C5CE7;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0F0F0F;
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0F0F0F;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-screen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255, 107, 107, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            background: linear-gradient(45deg, #0F0F0F 0%, #1a1a2e 50%, #16213e 100%);
+        }
+        
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(78, 205, 196, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(69, 183, 209, 0.1) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-50px, -50px) rotate(120deg); }
+            66% { transform: translate(50px, -20px) rotate(240deg); }
+        }
+        
+        /* Header Styles */
+        .header {
+            background: rgba(15, 15, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            transition: all 0.3s ease;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .logo {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .logo:hover {
+            transform: scale(1.05);
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: left 0.5s ease;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary), #FF5252);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 107, 107, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            text-align: center;
+            padding: 4rem 2rem 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .hero-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 3s ease-in-out infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2rem;
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        
+        .stat-number {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2.5rem;
+            color: var(--secondary);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Search Section */
+        .search-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            padding: 2rem;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 2rem auto;
+            max-width: 1200px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            font-size: 1rem;
+            min-width: 250px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+        }
+        
+        .filter-chips {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .chip {
+            padding: 0.6rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chip:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .chip.active {
+            background: linear-gradient(45deg, var(--secondary), var(--accent));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 5px 20px rgba(78, 205, 196, 0.3);
+        }
+        
+        /* Map Container */
+        .map-container {
+            position: relative;
+            margin: 2rem auto;
+            max-width: 1200px;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        
+        #map {
+            height: 600px;
+            width: 100%;
+            background: rgba(26, 26, 46, 0.3);
+        }
+        
+        .map-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 15, 15, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 1rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+        }
+        
+        .map-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .map-stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--secondary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+        
+        /* Listings Grid */
+        .listings-section {
+            margin: 4rem auto;
+            max-width: 1400px;
+            padding: 0 2rem;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .section-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 3rem;
+            background: linear-gradient(45deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem;
+            border-radius: 50px;
+        }
+        
+        .toggle-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-btn.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .listings-list {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .listings-list.active {
+            display: flex;
+        }
+        
+        .listings-grid.list-view {
+            display: none;
+        }
+        
+        .listing-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .listing-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .listing-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: linear-gradient(45deg, var(--gold), #FFA502);
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+            z-index: 10;
+        }
+        
+        .listing-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(45deg, #1a1a2e, #16213e);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .listing-image::before {
+            content: '🏺';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+        
+        .listing-content {
+            padding: 1.5rem;
+        }
+        
+        .listing-type {
+            display: inline-block;
+            padding: 0.4rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            color: var(--secondary);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+        
+        .listing-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+        
+        .listing-details {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .listing-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .listing-distance {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+        }
+        
+        .listing-time {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0F0F0F 100%);
+            max-width: 700px;
+            margin: 2rem auto;
+            padding: 3rem;
+            border-radius: 30px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 2rem;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .close-modal:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(90deg);
+        }
+        
+        .modal-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .modal-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        
+        .modal-subtitle {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--secondary);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(78, 205, 196, 0.2);
+        }
+        
+        .form-select option {
+            background: #1a1a2e;
+            color: white;
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .date-time-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--secondary);
+            background: rgba(78, 205, 196, 0.05);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-info {
+            background: linear-gradient(45deg, rgba(255, 107, 107, 0.1), rgba(78, 205, 196, 0.1));
+            padding: 2rem;
+            border-radius: 20px;
+            margin: 2rem 0;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .price-tag {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 3rem;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 1rem 0;
+        }
+        
+        .payment-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .feature-item {
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+        
+        /* Detail Modal Styles */
+        .detail-info {
+            margin: 2rem 0;
+        }
+        
+        .detail-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: var(--secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .detail-value {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+        
+        .detail-stats {
+            display: flex;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+        
+        .stat-box {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            min-width: 100px;
+        }
+        
+        .stat-box-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        
+        .stat-box-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* AdSense Styled */
+        .ad-container {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3rem;
+            text-align: center;
+            margin: 3rem auto;
+            max-width: 1200px;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ad-container::before {
+            content: 'AD';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+        }
+        
+        .ad-placeholder {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.9rem;
+        }
+        
+        /* State Selector */
+        .state-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 15px;
+            margin-top: 0.5rem;
+        }
+        
+        .state-chip {
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        
+        .state-chip:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .state-chip.selected {
+            background: var(--secondary);
+            color: #000;
+            border-color: var(--secondary);
+        }
+        
+        .photo-preview-item {
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .photo-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .photo-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Container */
+        .container {
+            padding: 0 1rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Footer */
+        .footer {
+            background: rgba(15, 15, 15, 0.9);
+            padding: 3rem 2rem 2rem;
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Loading Animation */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--secondary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Stripe Elements Container */
+        #card-element {
+            padding: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 1rem 0;
+        }
+        
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 15, 15, 0.9);
+            padding: 1rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .connection-status.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .connection-status.success {
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+        
+        .connection-status.error {
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        /* Mobile Touch Improvements */
+        .btn, .chip, .listing-card, button, select, input {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            -webkit-appearance: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        input, textarea, select {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        
+        /* Fix iOS button styles */
+        button, .btn {
+            -webkit-appearance: none;
+            border-radius: 50px;
+        }
+        
+        /* Prevent iOS zoom on inputs */
+        input[type="text"], input[type="email"], input[type="tel"], 
+        input[type="number"], input[type="search"], textarea, select {
+            font-size: 16px !important;
+            -webkit-appearance: none;
+        }
+        
+        /* Store Subscription Styles */
+        .plan-card {
+            transition: all 0.3s ease;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .plan-card.selected {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+            transform: scale(1.02);
+        }
+        
+        .pricing-grid {
+            margin: 2rem 0;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            html {
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+            }
+            
+            body {
+                font-size: 16px; /* Prevent zoom on iOS */
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                overflow-x: hidden;
+            }
+            
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .header-content {
+                justify-content: center;
+            }
+            
+            .stats-bar {
+                gap: 2rem;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-input {
+                min-width: auto;
+                width: 100%;
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+            
+            .btn {
+                width: 100%;
+                padding: 1rem;
+                font-size: 16px;
+                min-height: 44px; /* iOS touch target */
+            }
+            
+            .chip {
+                padding: 0.8rem 1.2rem;
+                font-size: 14px;
+                min-height: 44px; /* iOS touch target */
+            }
+            
+            #map {
+                height: 400px;
+                touch-action: pan-x pan-y;
+            }
+            
+            .listings-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .listing-card {
+                margin-bottom: 1rem;
+                min-height: 44px; /* iOS touch target */
+            }
+            
+            .date-time-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .map-overlay {
+                display: none;
+            }
+            
+            .modal-content {
+                margin: 0.5rem;
+                padding: 1.5rem;
+                max-height: 90vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .form-input, .form-select, .form-textarea {
+                font-size: 16px; /* Prevent zoom on iOS */
+                min-height: 44px;
+            }
+            
+            /* Fix Stripe Elements on mobile */
+            .card-element {
+                padding: 12px;
+                font-size: 16px;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            .header, .footer, .btn, .ad-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
+        <p>Loading Plundora...</p>
+    </div>
+    
+    <!-- Background Animation -->
+    <div class="bg-animation"></div>
+    
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo" onclick="window.location.reload()">
+                <span class="logo-icon">🏺</span>
+                Plundora
+            </div>
+            <nav class="nav-buttons">
+                <button class="btn btn-secondary" onclick="showAllListings()">
+                    <span>🗺️</span> Explore
+                </button>
+                <button class="btn btn-secondary" onclick="openStoreModal()">
+                    <span>🏺</span> List Your Store
+                </button>
+                <button class="btn btn-primary" onclick="openPostModal()">
+                    <span>✨</span> Post Your Sale
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main>
+        <div class="hero-section">
+            <h1 class="hero-title">Discover Hidden Treasures Across America</h1>
+            <p class="hero-subtitle">Connect treasure hunters with yard sales, estate sales, and antique stores nationwide</p>
+            
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-number" id="statesCount">50</div>
+                    <div class="stat-label">States Covered</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="salesCount">0</div>
+                    <div class="stat-label">Active Sales</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="treasuresCount">$0</div>
+                    <div class="stat-label">Treasures Found</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="container">
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search for vintage items, antiques, or locations...">
+                    <button class="btn btn-primary" onclick="performSearch()">
+                        Search
+                    </button>
+                    <button class="btn btn-secondary" onclick="searchNearbyAntiqueStores()">
+                        <span>📍</span> Find Near Me
+                    </button>
+                </div>
+                
+                <div class="filter-chips">
+                    <div class="chip active" onclick="toggleFilter(this, 'all')">✨ All Sales</div>
+                    <div class="chip" onclick="toggleFilter(this, 'yard')">🏠 Yard Sales</div>
+                    <div class="chip" onclick="toggleFilter(this, 'estate')">🏛️ Estate Sales</div>
+                    <div class="chip" onclick="toggleFilter(this, 'antique')">🏺 Antique Stores</div>
+                    <div class="chip" onclick="toggleFilter(this, 'garage')">🚗 Garage Sales</div>
+                    <div class="chip" onclick="toggleFilter(this, 'today')">🔥 Today Only</div>
+                    <div class="chip" onclick="toggleFilter(this, 'featured')">⭐ Featured</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+                <div class="map-stats">
+                    <div class="map-stat-item">
+                        <span class="status-dot"></span>
+                        <span>Live tracking enabled</span>
+                    </div>
+                    <div class="map-stat-item">
+                        <span>📍</span>
+                        <span id="nearbyCount">0</span> sales nearby
+                    </div>
+                    <div class="map-stat-item">
+                        <span>🔥</span>
+                        <span id="startingSoon">0</span> starting soon
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AdSense Auto Ads Container -->
+        <div class="ad-container" style="min-height: 90px;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-9897864837897654"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
+
+        <!-- Listings Grid -->
+        <div class="listings-section">
+            <div class="section-header">
+                <h2 class="section-title">🔥 Trending Sales</h2>
+                <div class="view-toggle">
+                    <button class="toggle-btn active" onclick="toggleView('grid')">Grid</button>
+                    <button class="toggle-btn" onclick="toggleView('map')">Map</button>
+                    <button class="toggle-btn" onclick="toggleView('list')">List</button>
+                </div>
+            </div>
+            
+            <div class="listings-grid" id="listingsGrid">
+                <!-- Listings will be dynamically loaded here -->
+            </div>
+            
+            <div class="listings-list" id="listingsList">
+                <!-- List view will be populated here -->
+            </div>
+        </div>
+
+        <!-- Second AdSense Ad -->
+        <div class="ad-container" style="min-height: 250px; margin: 40px auto;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-9897864837897654"
+                 data-ad-format="rectangle"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
+    </main>
+
+    <!-- Post Sale Modal -->
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closePostModal()">&times;</span>
+            
+            <div class="modal-header">
+                <h2 class="modal-title">List Your Treasure Sale</h2>
+                <p class="modal-subtitle">Reach thousands of treasure hunters across all 50 states</p>
+            </div>
+            
+            <form id="postForm" onsubmit="handlePostSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Sale Type</label>
+                    <select class="form-select" id="saleType" required>
+                        <option value="">Select Type</option>
+                        <option value="yard">🏠 Yard Sale</option>
+                        <option value="estate">🏛️ Estate Sale</option>
+                        <option value="garage">🚗 Garage Sale</option>
+                        <option value="moving">📦 Moving Sale</option>
+                        <option value="community">👥 Community Sale</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Sale Title</label>
+                    <input type="text" class="form-input" id="saleTitle" placeholder="e.g., Massive Estate Sale - Antiques & Collectibles" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="saleDescription" placeholder="Describe the treasures people will find. Be specific about special items!" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" class="form-input" id="stateSearch" placeholder="Type to search states..." oninput="filterStates(this.value)">
+                    <div class="state-selector" id="stateSelector">
+                        <!-- States will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Full Address</label>
+                    <input type="text" class="form-input" id="saleAddress" placeholder="123 Main Street, City, State ZIP" required>
+                </div>
+                
+                <div class="date-time-group">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-input" id="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-input" id="endDate" required>
+                    </div>
+                </div>
+                
+                <div class="date-time-group">
+                    <div class="form-group">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" class="form-input" id="startTime" value="09:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time</label>
+                        <input type="time" class="form-input" id="endTime" value="17:00" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Upload Photos (Max 5)</label>
+                    <div class="upload-area" onclick="document.getElementById('photoUpload').click()">
+                        <div class="upload-icon">📸</div>
+                        <p>Click to upload photos of your best items</p>
+                        <small>JPG, PNG up to 5MB each</small>
+                        <input type="file" id="photoUpload" multiple accept="image/*" style="display: none;" onchange="handlePhotoUpload(this)">
+                    </div>
+                    <div id="photoPreview" style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;"></div>
+                </div>
+                
+                <div class="payment-info">
+                    <p style="color: rgba(255,255,255,0.6);">One-time listing fee</p>
+                    <div class="price-tag">$7.99</div>
+                    <div class="payment-features">
+                        <div class="feature-item">✅ Active until sale ends</div>
+                        <div class="feature-item">📍 All 50 states</div>
+                        <div class="feature-item">🔥 Featured placement</div>
+                        <div class="feature-item">📱 Mobile optimized</div>
+                    </div>
+                </div>
+                
+                <!-- Stripe Card Element -->
+                <div class="form-group">
+                    <label class="form-label">Payment Information</label>
+                    <div id="card-element">
+                        <!-- Stripe card element will be mounted here -->
+                    </div>
+                    <div id="card-errors" style="color: var(--primary); margin-top: 0.5rem;"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; margin-top: 1rem;">
+                    <span id="submitText">Complete Payment & Post Sale</span>
+                    <span class="loading-spinner" style="display: none;"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Store Subscription Modal -->
+    <div id="storeModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close-modal" onclick="closeStoreModal()">&times;</span>
+            
+            <div class="modal-header">
+                <h2 class="modal-title">List Your Antique Store</h2>
+                <p class="modal-subtitle">Join thousands of stores connecting with treasure hunters nationwide</p>
+            </div>
+            
+            <!-- Pricing Plans -->
+            <div class="pricing-section" style="margin-bottom: 3rem;">
+                <div class="pricing-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    
+                    <div class="plan-card selected" data-plan="free" onclick="selectStorePlan('free')" style="background: rgba(255,255,255,0.05); border: 2px solid var(--secondary); border-radius: 15px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease;">
+                        <h3 style="color: var(--secondary); margin-bottom: 0.5rem;">FREE</h3>
+                        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">$0</div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="margin: 0.5rem 0;">✅ Basic listing</li>
+                            <li style="margin: 0.5rem 0;">✅ Map placement</li>
+                            <li style="margin: 0.5rem 0;">✅ Customer reviews</li>
+                            <li style="margin: 0.5rem 0;">✅ Contact info</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="plan-card" data-plan="basic" onclick="selectStorePlan('basic')" style="background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease;">
+                        <h3 style="color: var(--primary); margin-bottom: 0.5rem;">BASIC</h3>
+                        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">$20<small>/month</small></div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="margin: 0.5rem 0;">✅ Everything in Free</li>
+                            <li style="margin: 0.5rem 0;">✅ Photo gallery (10 photos)</li>
+                            <li style="margin: 0.5rem 0;">✅ Featured placement</li>
+                            <li style="margin: 0.5rem 0;">✅ Store description</li>
+                            <li style="margin: 0.5rem 0;">✅ Social media links</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="plan-card" data-plan="premium" onclick="selectStorePlan('premium')" style="background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease;">
+                        <h3 style="color: var(--gold); margin-bottom: 0.5rem;">PREMIUM</h3>
+                        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">$50<small>/month</small></div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="margin: 0.5rem 0;">✅ Everything in Basic</li>
+                            <li style="margin: 0.5rem 0;">✅ Priority map placement</li>
+                            <li style="margin: 0.5rem 0;">✅ Weekly email blasts</li>
+                            <li style="margin: 0.5rem 0;">✅ Analytics dashboard</li>
+                            <li style="margin: 0.5rem 0;">✅ Event announcements</li>
+                            <li style="margin: 0.5rem 0;">✅ "Verified Store" badge</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="plan-card" data-plan="enterprise" onclick="selectStorePlan('enterprise')" style="background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease;">
+                        <h3 style="color: var(--purple); margin-bottom: 0.5rem;">ENTERPRISE</h3>
+                        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">$100<small>/month</small></div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="margin: 0.5rem 0;">✅ Everything in Premium</li>
+                            <li style="margin: 0.5rem 0;">✅ Multi-location management</li>
+                            <li style="margin: 0.5rem 0;">✅ API integration</li>
+                            <li style="margin: 0.5rem 0;">✅ Custom branding</li>
+                            <li style="margin: 0.5rem 0;">✅ Direct messaging</li>
+                            <li style="margin: 0.5rem 0;">✅ Advanced analytics</li>
+                        </ul>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <!-- Store Registration Form -->
+            <form id="storeForm" onsubmit="handleStoreSignup(event)">
+                <input type="hidden" id="selectedPlan" value="free">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Store Name *</label>
+                        <input type="text" class="form-input" id="storeName" placeholder="e.g., Vintage Treasures Antiques" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Owner Name *</label>
+                        <input type="text" class="form-input" id="ownerName" placeholder="Your full name" required>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" class="form-input" id="storeEmail" placeholder="contact@yourstore.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-input" id="storePhone" placeholder="(555) 123-4567">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Store Address *</label>
+                    <input type="text" class="form-input" id="storeAddress" placeholder="123 Main Street, City, State ZIP" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Website (Optional)</label>
+                    <input type="url" class="form-input" id="storeWebsite" placeholder="https://yourstore.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Store Description</label>
+                    <textarea class="form-textarea" id="storeDescription" placeholder="Tell treasure hunters what makes your store special. What types of antiques do you specialize in?" style="min-height: 100px;"></textarea>
+                </div>
+                
+                <div style="background: rgba(78, 205, 196, 0.1); padding: 2rem; border-radius: 15px; margin: 2rem 0; text-align: center;">
+                    <h3 style="color: var(--secondary); margin-bottom: 1rem;">🚀 Ready to Get More Customers?</h3>
+                    <p style="margin-bottom: 1rem;">Join 500+ stores already using Plundora to connect with treasure hunters</p>
+                    <ul style="list-style: none; padding: 0; margin: 1rem 0; display: inline-block; text-align: left;">
+                        <li>✅ Reach 10,000+ treasure hunters nationwide</li>
+                        <li>✅ Free 7-day trial on all paid plans</li>
+                        <li>✅ Cancel anytime, no contracts</li>
+                        <li>✅ Setup takes less than 5 minutes</li>
+                    </ul>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="storeSignupBtn" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; margin-top: 1rem;">
+                    Start Free Trial
+                </button>
+                
+                <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: rgba(255,255,255,0.6);">
+                    By signing up, you agree to our Terms of Service and Privacy Policy.<br>
+                    Questions? Email <a href="mailto:support@plundora.com" style="color: var(--primary);">support@plundora.com</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Details Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeDetailModal()">&times;</span>
+            
+            <div class="modal-header">
+                <h2 class="modal-title" id="detailTitle">Loading...</h2>
+                <p class="modal-subtitle" id="detailType">Loading...</p>
+            </div>
+            
+            <div class="detail-info">
+                <div class="detail-stats">
+                    <div class="stat-box">
+                        <div class="stat-box-number" id="detailViews">0</div>
+                        <div class="stat-box-label">Views</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-number" id="detailInterested">0</div>
+                        <div class="stat-box-label">Interested</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-number" id="detailDistance">0</div>
+                        <div class="stat-box-label">Miles Away</div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <div class="detail-label">📅 When</div>
+                    <div class="detail-value" id="detailWhen">Loading...</div>
+                </div>
+                
+                <div class="detail-section">
+                    <div class="detail-label">📍 Where</div>
+                    <div class="detail-value" id="detailWhere">Loading...</div>
+                </div>
+                
+                <div class="detail-section">
+                    <div class="detail-label">📝 Description</div>
+                    <div class="detail-value" id="detailDescription">Loading...</div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="markInterested()">
+                        <span>⭐</span> I'm Interested
+                    </button>
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="getDirections()">
+                        <span>🗺️</span> Get Directions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connectionStatus">
+        <span id="statusIcon">⚡</span>
+        <span id="statusText">Checking connection...</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2024 Plundora. All rights reserved.</p>
+        <p>Discover treasures in all 50 states</p>
+        <div style="margin-top: 20px;">
+            <a href="#" onclick="showPrivacyPolicy(); return false;" style="color: var(--primary); margin: 0 10px; text-decoration: none;">Privacy Policy</a>
+            <a href="#" onclick="showTerms(); return false;" style="color: var(--primary); margin: 0 10px; text-decoration: none;">Terms of Service</a>
+            <a href="#" onclick="showContact(); return false;" style="color: var(--primary); margin: 0 10px; text-decoration: none;">Contact Us</a>
+        </div>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // ========================================
+        // CONFIGURATION
+        // ========================================
+        
+        // Production API endpoint
+        const API_BASE_URL = '{{API_BASE_URL}}';
+        
+        // Stripe live publishable key
+        const STRIPE_PUBLIC_KEY = '{{STRIPE_PUBLIC_KEY}}';
+        
+        // ========================================
+        // API ENDPOINTS
+        // ========================================
+        const API_ENDPOINTS = {
+            test: `${API_BASE_URL}/api/test`,
+            createPayment: `${API_BASE_URL}/api/create-payment-intent`,
+            sales: {
+                nearby: `${API_BASE_URL}/api/sales/nearby`,
+                search: `${API_BASE_URL}/api/sales/search`,
+                featured: `${API_BASE_URL}/api/sales/featured`,
+                create: `${API_BASE_URL}/api/sales`,
+                byId: (id) => `${API_BASE_URL}/api/sales/${id}`,
+                interested: (id) => `${API_BASE_URL}/api/sales/${id}/interested`
+            },
+            states: {
+                sales: (state) => `${API_BASE_URL}/api/states/${state}/sales`
+            },
+            upload: `${API_BASE_URL}/api/upload`
+        };
+        
+        // ========================================
+        // GLOBAL VARIABLES
+        // ========================================
+        let map;
+        let userMarker;
+        let saleMarkers = [];
+        let selectedState = null;
+        let activeFilters = ['all'];
+        let stripe;
+        let elements;
+        let cardElement;
+        let currentSaleId = null;
+        let currentView = 'grid';
+        let uploadedFiles = [];
+        
+        // US States data
+        const usStates = [
+            'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+            'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+            'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+            'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+            'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+            'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+            'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+            'Wisconsin', 'Wyoming'
+        ];
+        
+        // ========================================
+        // MOBILE TOUCH FIXES
+        // ========================================
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.innerWidth <= 768;
+        }
+        
+        // Fix iOS click events
+        if (isMobile()) {
+            document.addEventListener('touchstart', function() {}, true);
+        }
+        
+        // Prevent zoom on double tap and fix iOS touch issues
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // Fix iOS Safari button clicks
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            document.addEventListener('click', function(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.classList.contains('btn') || e.target.classList.contains('chip')) {
+                    e.target.style.WebkitTransform = 'scale(0.95)';
+                    setTimeout(() => {
+                        e.target.style.WebkitTransform = 'scale(1)';
+                    }, 100);
+                }
+            });
+        }
+        
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Initializing Plundora...');
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.add('hide');
+            }, 1500);
+            
+            // Initialize components
+            initializeStripe();
+            initializeMap();
+            populateStateSelector();
+            await testBackendConnection();
+            
+            // Set minimum dates
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').setAttribute('min', today);
+            document.getElementById('endDate').setAttribute('min', today);
+            
+            // Animate stats
+            animateStats();
+        });
+        
+        // ========================================
+        // API FUNCTIONS
+        // ========================================
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const defaultOptions = {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    ...options
+                };
+                
+                console.log(`📡 API Call: ${endpoint}`);
+                const response = await fetch(endpoint, defaultOptions);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('❌ API call failed:', error);
+                showConnectionStatus('error', 'Connection failed');
+                throw error;
+            }
+        }
+        
+        async function testBackendConnection() {
+            try {
+                const data = await apiCall(API_ENDPOINTS.test);
+                console.log('✅ Backend connected:', data);
+                showConnectionStatus('success', 'Connected to backend');
+                
+                // Load initial sales data
+                if (navigator.geolocation) {
+                    getCurrentLocation();
+                } else {
+                    // Load demo sales if no geolocation
+                    const salesData = await apiCall(API_ENDPOINTS.sales.nearby);
+                    displaySalesOnMap(salesData.sales || []);
+                    updateListingsGrid(salesData.sales || []);
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('❌ Backend connection failed:', error);
+                showConnectionStatus('error', 'Backend offline - Demo mode');
+                loadDemoData();
+                return false;
+            }
+        }
+        
+        // ========================================
+        // STRIPE FUNCTIONS
+        // ========================================
+        function initializeStripe() {
+            try {
+                stripe = Stripe(STRIPE_PUBLIC_KEY);
+                elements = stripe.elements({
+                    appearance: {
+                        theme: 'night',
+                        variables: {
+                            colorPrimary: '#FF6B6B',
+                            colorBackground: 'rgba(255, 255, 255, 0.05)',
+                            colorText: '#ffffff',
+                            colorDanger: '#FF6B6B',
+                            fontFamily: 'Inter, sans-serif',
+                            borderRadius: '15px'
+                        }
+                    }
+                });
+                
+                cardElement = elements.create('card', {
+                    style: {
+                        base: {
+                            color: '#fff',
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '16px',
+                            '::placeholder': {
+                                color: 'rgba(255,255,255,0.5)'
+                            }
+                        },
+                        invalid: {
+                            color: '#FF6B6B',
+                            iconColor: '#FF6B6B'
+                        }
+                    }
+                });
+                
+                cardElement.mount('#card-element');
+                
+                cardElement.on('change', function(event) {
+                    const displayError = document.getElementById('card-errors');
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                    } else {
+                        displayError.textContent = '';
+                    }
+                });
+                
+                console.log('✅ Stripe initialized with live keys');
+            } catch (error) {
+                console.error('❌ Stripe initialization failed:', error);
+            }
+        }
+        
+        // ========================================
+        // MAP FUNCTIONS
+        // ========================================
+        function initializeMap() {
+            try {
+                // Create map centered on USA
+                map = L.map('map', {
+                    center: [39.8283, -98.5795],
+                    zoom: 4,
+                    zoomControl: false
+                });
+                
+                // Add zoom control to bottom right
+                L.control.zoom({
+                    position: 'bottomright'
+                }).addTo(map);
+                
+                // Dark theme map tiles
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors © CARTO',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                console.log('✅ Map initialized');
+            } catch (error) {
+                console.error('❌ Map initialization failed:', error);
+            }
+        }
+        
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        map.flyTo([lat, lng], 12, {
+                            duration: 2
+                        });
+                        
+                        if (userMarker) {
+                            map.removeLayer(userMarker);
+                        }
+                        
+                        userMarker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                html: `<div style="position: relative;">
+                                    <div style="background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+                                              color: white; border-radius: 50%; width: 40px; height: 40px; 
+                                              display: flex; align-items: center; justify-content: center; 
+                                              font-weight: bold; border: 3px solid white; 
+                                              box-shadow: 0 5px 20px rgba(0,0,0,0.3);">📍</div>
+                                    <div style="position: absolute; top: 50%; left: 50%; 
+                                              transform: translate(-50%, -50%); width: 60px; height: 60px; 
+                                              border: 2px solid var(--secondary); border-radius: 50%; 
+                                              animation: pulse 2s ease-in-out infinite;"></div>
+                                </div>`,
+                                iconSize: [60, 60],
+                                className: 'user-location-marker'
+                            })
+                        }).addTo(map);
+                        
+                        loadNearbySales(lat, lng);
+                    },
+                    (error) => {
+                        console.error('Location error:', error);
+                        loadDemoData();
+                    }
+                );
+            } else {
+                loadDemoData();
+            }
+        }
+        
+        async function loadNearbySales(lat, lng) {
+            try {
+                const params = new URLSearchParams({
+                    lat: lat,
+                    lng: lng,
+                    radius: 50
+                });
+                
+                const response = await apiCall(`${API_ENDPOINTS.sales.nearby}?${params}`);
+                displaySalesOnMap(response.sales || []);
+                updateListingsGrid(response.sales || []);
+                
+                // Update stats
+                document.getElementById('salesCount').textContent = response.total || '0';
+                document.getElementById('nearbyCount').textContent = response.sales ? response.sales.length : '0';
+                document.getElementById('startingSoon').textContent = 
+                    response.sales ? response.sales.filter(s => isStartingSoon(s)).length : '0';
+            } catch (error) {
+                console.error('Failed to load sales:', error);
+                loadDemoData();
+            }
+        }
+        
+        function displaySalesOnMap(sales) {
+            // Clear existing markers
+            saleMarkers.forEach(marker => map.removeLayer(marker));
+            saleMarkers = [];
+            
+            sales.forEach(sale => {
+                if (sale.location && sale.location.lat && sale.location.lng) {
+                    const marker = L.marker([sale.location.lat, sale.location.lng], {
+                        icon: L.divIcon({
+                            html: `<div style="background: linear-gradient(45deg, ${getColorForType(sale.type)}, ${getLighterColor(sale.type)}); 
+                                      color: white; border-radius: 50%; width: 45px; height: 45px; 
+                                      display: flex; align-items: center; justify-content: center; 
+                                      font-size: 22px; border: 3px solid rgba(255,255,255,0.9); 
+                                      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+                                      cursor: pointer; transition: all 0.3s ease;"
+                                      onmouseover="this.style.transform='scale(1.1)'"
+                                      onmouseout="this.style.transform='scale(1)'">${getIconForType(sale.type)}</div>`,
+                            iconSize: [45, 45],
+                            className: 'sale-marker'
+                        })
+                    }).addTo(map);
+                    
+                    marker.bindPopup(createPopupContent(sale));
+                    saleMarkers.push(marker);
+                }
+            });
+        }
+        
+        // ========================================
+        // UI FUNCTIONS
+        // ========================================
+        function showConnectionStatus(type, message) {
+            const status = document.getElementById('connectionStatus');
+            const icon = document.getElementById('statusIcon');
+            const text = document.getElementById('statusText');
+            
+            status.className = `connection-status show ${type}`;
+            icon.textContent = type === 'success' ? '✅' : '❌';
+            text.textContent = message;
+            
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 3000);
+        }
+        
+        function animateStats() {
+            // Static numbers for demo
+            animateNumber('treasuresCount', 1500000, '$', 'M');
+        }
+        
+        function animateNumber(id, target, prefix = '', suffix = '') {
+            const element = document.getElementById(id);
+            if (!element) return;
+            
+            const duration = 2000;
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                
+                if (suffix.includes('M')) {
+                    element.textContent = prefix + (current / 1000000).toFixed(1) + suffix;
+                } else if (suffix.includes('K')) {
+                    element.textContent = Math.floor(current / 1000) + suffix;
+                } else {
+                    element.textContent = prefix + Math.floor(current).toLocaleString() + suffix;
+                }
+            }, 16);
+        }
+        
+        function populateStateSelector() {
+            const selector = document.getElementById('stateSelector');
+            selector.innerHTML = usStates.map(state => 
+                `<div class="state-chip" onclick="selectState('${state}')">${state}</div>`
+            ).join('');
+        }
+        
+        function filterStates(query) {
+            const chips = document.querySelectorAll('.state-chip');
+            chips.forEach(chip => {
+                chip.style.display = chip.textContent.toLowerCase().includes(query.toLowerCase()) ? 'block' : 'none';
+            });
+        }
+        
+        function selectState(state) {
+            selectedState = state;
+            document.getElementById('stateSearch').value = state;
+            document.querySelectorAll('.state-chip').forEach(chip => {
+                chip.classList.toggle('selected', chip.textContent === state);
+            });
+        }
+        
+        function toggleFilter(chipElement, filter) {
+            if (filter === 'all') {
+                document.querySelectorAll('.chip').forEach(chip => chip.classList.remove('active'));
+                chipElement.classList.add('active');
+                activeFilters = ['all'];
+            } else {
+                document.querySelector('.chip').classList.remove('active');
+                chipElement.classList.toggle('active');
+                
+                if (chipElement.classList.contains('active')) {
+                    activeFilters.push(filter);
+                } else {
+                    activeFilters = activeFilters.filter(f => f !== filter);
+                }
+                
+                if (activeFilters.length === 0) {
+                    document.querySelector('.chip').classList.add('active');
+                    activeFilters = ['all'];
+                }
+            }
+            
+            filterSales();
+        }
+        
+        function toggleView(view) {
+            currentView = view;
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === view);
+            });
+            
+            const grid = document.getElementById('listingsGrid');
+            const list = document.getElementById('listingsList');
+            
+            if (view === 'grid') {
+                grid.style.display = 'grid';
+                list.style.display = 'none';
+            } else if (view === 'list') {
+                grid.style.display = 'none';
+                list.style.display = 'flex';
+                list.classList.add('active');
+                // Populate list view with same data
+                const cards = grid.querySelectorAll('.listing-card');
+                list.innerHTML = grid.innerHTML;
+            } else if (view === 'map') {
+                // Scroll to map
+                document.querySelector('.map-container').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        function updateListingsGrid(sales) {
+            const grid = document.getElementById('listingsGrid');
+            
+            if (!sales || sales.length === 0) {
+                grid.innerHTML = `
+                    <div class="listing-card">
+                        <div class="listing-content">
+                            <h3 class="listing-title">No sales found in your area</h3>
+                            <p class="listing-details">Try expanding your search radius or check back later for new listings.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = sales.map(sale => createListingCard(sale)).join('');
+        }
+        
+        function createListingCard(sale) {
+            // Handle Google Places antique stores differently
+            if (sale.isGooglePlace) {
+                return `
+                    <div class="listing-card" onclick="openGooglePlace('${sale.placeId}', '${encodeURIComponent(sale.location.address)}')">
+                        ${sale.rating >= 4.5 ? '<div class="listing-badge">⭐ TOP RATED</div>' : ''}
+                        <div class="listing-image"></div>
+                        <div class="listing-content">
+                            <div class="listing-type">Antique Store</div>
+                            <h3 class="listing-title">${sale.title}</h3>
+                            <p class="listing-details">${sale.description}</p>
+                            ${sale.openNow !== undefined ? 
+                                `<p style="margin: 5px 0; font-weight: 600; color: ${sale.openNow ? '#4CAF50' : '#FF5252'};">
+                                    ${sale.openNow ? '🟢 Open Now' : '🔴 Closed'}
+                                </p>` : ''}
+                            <div class="listing-footer">
+                                <div class="listing-distance">
+                                    <span>📍</span>
+                                    <span>${sale.location.address}</span>
+                                </div>
+                                <div class="listing-time">Click for directions</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Original card for user-posted sales
+            return `
+                <div class="listing-card" onclick="showListingDetails('${sale.id}')">
+                    ${sale.metadata && sale.metadata.featured ? '<div class="listing-badge">⭐ FEATURED</div>' : ''}
+                    <div class="listing-image"></div>
+                    <div class="listing-content">
+                        <div class="listing-type">${sale.type ? sale.type.charAt(0).toUpperCase() + sale.type.slice(1) : 'Sale'}</div>
+                        <h3 class="listing-title">${sale.title || 'Untitled Sale'}</h3>
+                        <p class="listing-details">${sale.description ? sale.description.substring(0, 150) : 'No description available'}...</p>
+                        <div class="listing-footer">
+                            <div class="listing-distance">
+                                <span>📍</span>
+                                <span>${sale.distance ? sale.distance.toFixed(1) : '0'} miles</span>
+                            </div>
+                            <div class="listing-time">${formatSaleTime(sale.dates)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function createPopupContent(sale) {
+            return `
+                <div style="background: rgba(15,15,15,0.9); backdrop-filter: blur(20px); 
+                          border-radius: 15px; padding: 20px; border: 1px solid rgba(255,255,255,0.1);
+                          color: white; text-align: center; min-width: 200px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 1.2rem;">${sale.title || 'Untitled Sale'}</h3>
+                    <p style="margin: 5px 0; color: rgba(255,255,255,0.7);">📍 ${sale.distance ? sale.distance.toFixed(1) : '0'} miles away</p>
+                    <p style="margin: 5px 0; color: var(--secondary);">🕐 ${formatSaleTime(sale.dates)}</p>
+                    <button class="btn btn-primary" style="margin-top: 10px; padding: 0.5rem 1.5rem; font-size: 0.9rem;" 
+                            onclick="showListingDetails('${sale.id}')">View Details</button>
+                </div>
+            `;
+        }
+        
+        // ========================================
+        // MODAL FUNCTIONS
+        // ========================================
+        function openPostModal() {
+            document.getElementById('postModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closePostModal() {
+            document.getElementById('postModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function closeDetailModal() {
+            document.getElementById('detailModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            currentSaleId = null;
+        }
+        
+        async function showListingDetails(id) {
+            currentSaleId = id;
+            const modal = document.getElementById('detailModal');
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            
+            try {
+                const sale = await apiCall(API_ENDPOINTS.sales.byId(id));
+                
+                document.getElementById('detailTitle').textContent = sale.title || 'Untitled Sale';
+                document.getElementById('detailType').textContent = `${getIconForType(sale.type)} ${sale.type ? sale.type.charAt(0).toUpperCase() + sale.type.slice(1) : 'Sale'}`;
+                document.getElementById('detailViews').textContent = sale.metadata?.views || 0;
+                document.getElementById('detailInterested').textContent = sale.metadata?.interested || 0;
+                document.getElementById('detailDistance').textContent = sale.distance ? sale.distance.toFixed(1) : '0';
+                document.getElementById('detailWhen').textContent = formatDetailTime(sale.dates);
+                document.getElementById('detailWhere').textContent = sale.location?.address || 'Address not available';
+                document.getElementById('detailDescription').textContent = sale.description || 'No description available';
+            } catch (error) {
+                console.error('Failed to load sale details:', error);
+                document.getElementById('detailTitle').textContent = 'Error Loading Details';
+                document.getElementById('detailDescription').textContent = 'Unable to load sale details. Please try again.';
+            }
+        }
+        
+        async function markInterested() {
+            if (!currentSaleId) return;
+            
+            try {
+                const result = await apiCall(API_ENDPOINTS.sales.interested(currentSaleId), {
+                    method: 'POST'
+                });
+                
+                document.getElementById('detailInterested').textContent = result.interested;
+                showConnectionStatus('success', 'Marked as interested!');
+            } catch (error) {
+                console.error('Failed to mark interested:', error);
+                showConnectionStatus('error', 'Failed to update');
+            }
+        }
+        
+        function getDirections() {
+            const whereElement = document.getElementById('detailWhere');
+            const address = whereElement ? whereElement.textContent : '';
+            if (address && address !== 'Address not available') {
+                const encodedAddress = encodeURIComponent(address);
+                window.open(`https://maps.google.com/?q=${encodedAddress}`, '_blank');
+            } else {
+                showConnectionStatus('error', 'Address not available');
+            }
+        }
+        
+        function openGooglePlace(placeId, address) {
+            if (placeId) {
+                // Open Google Maps with place ID for more details
+                window.open(`https://www.google.com/maps/place/?q=place_id:${placeId}`, '_blank');
+            } else if (address) {
+                // Fallback to address search
+                window.open(`https://maps.google.com/?q=${address}`, '_blank');
+            }
+        }
+        
+        // Legal pages for AdSense compliance
+        function showPrivacyPolicy() {
+            alert(`PRIVACY POLICY
+
+Plundora respects your privacy. We collect:
+• Location data (with permission) to show nearby sales
+• Payment info (processed securely by Stripe)
+• Sale listing information you provide
+
+We use cookies and Google AdSense for advertising.
+We never sell your personal data.
+
+For questions: support@plundora.com`);
+        }
+        
+        function showTerms() {
+            alert(`TERMS OF SERVICE
+
+By using Plundora:
+• You agree to pay $7.99 per sale listing
+• You certify all sale information is accurate
+• You won't post illegal or prohibited items
+• Listings are live for 30 days
+• We reserve the right to remove inappropriate content
+
+All sales are between buyers and sellers directly.
+Plundora is a listing platform only.`);
+        }
+        
+        function showContact() {
+            alert(`CONTACT US
+
+Email: support@plundora.com
+Phone: 1-800-PLUNDORA
+
+Business Hours:
+Monday-Friday: 9AM-5PM EST
+Saturday-Sunday: 10AM-4PM EST
+
+Headquarters:
+Plundora Inc.
+123 Treasure Lane
+New York, NY 10001`);
+        }
+        
+        // ========================================
+        // STORE SUBSCRIPTION FUNCTIONS
+        // ========================================
+        function openStoreModal() {
+            document.getElementById('storeModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeStoreModal() {
+            document.getElementById('storeModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function selectStorePlan(plan) {
+            document.querySelectorAll('.plan-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector(`[data-plan="${plan}"]`).classList.add('selected');
+            document.getElementById('selectedPlan').value = plan;
+            
+            // Update signup button
+            const prices = { free: 'Free', basic: '$20', premium: '$50', enterprise: '$100' };
+            const btn = document.getElementById('storeSignupBtn');
+            btn.textContent = plan === 'free' ? 'Start Free Trial' : `Subscribe ${prices[plan]}/month`;
+        }
+        
+        async function handleStoreSignup(event) {
+            event.preventDefault();
+            
+            const formData = {
+                plan: document.getElementById('selectedPlan').value,
+                storeName: document.getElementById('storeName').value,
+                ownerName: document.getElementById('ownerName').value,
+                email: document.getElementById('storeEmail').value,
+                phone: document.getElementById('storePhone').value,
+                address: document.getElementById('storeAddress').value,
+                website: document.getElementById('storeWebsite').value,
+                description: document.getElementById('storeDescription').value
+            };
+            
+            try {
+                // Send welcome email and start onboarding sequence
+                await sendStoreWelcomeEmail(formData);
+                
+                // For now, show success message (in production, integrate with payment)
+                showConnectionStatus('success', 'Welcome to Plundora! Check your email for next steps.');
+                closeStoreModal();
+                
+                // Reset form
+                document.getElementById('storeForm').reset();
+                selectStorePlan('free');
+            } catch (error) {
+                console.error('Store signup failed:', error);
+                showConnectionStatus('error', 'Signup failed. Please try again.');
+            }
+        }
+        
+        async function sendStoreWelcomeEmail(storeData) {
+            // In production, this would integrate with an email service
+            console.log('Sending welcome email to:', storeData.email);
+            console.log('Starting automated onboarding sequence...');
+            
+            // Simulate API call
+            return new Promise(resolve => {
+                setTimeout(resolve, 1000);
+            });
+        }
+        
+        async function handlePostSubmit(event) {
+            event.preventDefault();
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const submitText = document.getElementById('submitText');
+            const spinner = submitBtn.querySelector('.loading-spinner');
+            
+            // Show loading state
+            submitText.textContent = 'Processing...';
+            spinner.style.display = 'inline-block';
+            submitBtn.disabled = true;
+            
+            // Collect form data
+            const formData = {
+                type: document.getElementById('saleType').value,
+                title: document.getElementById('saleTitle').value,
+                description: document.getElementById('saleDescription').value,
+                state: selectedState,
+                address: document.getElementById('saleAddress').value,
+                dates: {
+                    startDate: document.getElementById('startDate').value,
+                    endDate: document.getElementById('endDate').value,
+                    startTime: document.getElementById('startTime').value,
+                    endTime: document.getElementById('endTime').value
+                }
+            };
+            
+            try {
+                // Create payment method with Stripe
+                const {paymentMethod, error} = await stripe.createPaymentMethod({
+                    type: 'card',
+                    card: cardElement,
+                });
+                
+                if (error) {
+                    document.getElementById('card-errors').textContent = error.message;
+                    submitText.textContent = 'Complete Payment & Post Sale';
+                    spinner.style.display = 'none';
+                    submitBtn.disabled = false;
+                    return;
+                }
+                
+                // Send to backend for payment processing
+                const result = await apiCall(API_ENDPOINTS.createPayment, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        paymentMethodId: paymentMethod.id,
+                        saleData: formData
+                    })
+                });
+                
+                if (result.error) {
+                    document.getElementById('card-errors').textContent = result.error;
+                } else if (result.clientSecret) {
+                    // Confirm the payment
+                    const {paymentIntent, error: confirmError} = await stripe.confirmCardPayment(result.clientSecret);
+                    
+                    if (confirmError) {
+                        document.getElementById('card-errors').textContent = confirmError.message;
+                    } else if (paymentIntent.status === 'succeeded') {
+                        showConnectionStatus('success', 'Payment successful! Sale posted.');
+                        closePostModal();
+                        
+                        // Refresh sales data
+                        if (userMarker) {
+                            const latlng = userMarker.getLatLng();
+                            loadNearbySales(latlng.lat, latlng.lng);
+                        } else {
+                            const salesData = await apiCall(API_ENDPOINTS.sales.nearby);
+                            displaySalesOnMap(salesData.sales || []);
+                            updateListingsGrid(salesData.sales || []);
+                        }
+                    }
+                } else {
+                    document.getElementById('card-errors').textContent = 'Payment processing failed. Please try again.';
+                }
+            } catch (error) {
+                console.error('Payment failed:', error);
+                document.getElementById('card-errors').textContent = 'An error occurred. Please try again.';
+            } finally {
+                submitText.textContent = 'Complete Payment & Post Sale';
+                spinner.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        function handlePhotoUpload(input) {
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = '';
+            uploadedFiles = [];
+            
+            if (input.files.length > 5) {
+                alert('Maximum 5 photos allowed');
+                input.value = '';
+                return;
+            }
+            
+            Array.from(input.files).forEach((file, index) => {
+                uploadedFiles.push(file);
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const photoItem = document.createElement('div');
+                    photoItem.className = 'photo-preview-item';
+                    photoItem.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <button class="photo-remove" onclick="removePhoto(${index})">×</button>
+                    `;
+                    preview.appendChild(photoItem);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        function removePhoto(index) {
+            uploadedFiles.splice(index, 1);
+            const preview = document.getElementById('photoPreview');
+            preview.children[index].remove();
+        }
+        
+        // ========================================
+        // SEARCH FUNCTIONS
+        // ========================================
+        async function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (!searchTerm) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    q: searchTerm,
+                    state: selectedState || '',
+                    type: activeFilters.join(',')
+                });
+                
+                const result = await apiCall(`${API_ENDPOINTS.sales.search}?${params}`);
+                displaySalesOnMap(result.sales || []);
+                updateListingsGrid(result.sales || []);
+                
+                showConnectionStatus('success', `Found ${result.total || 0} sales`);
+            } catch (error) {
+                console.error('Search failed:', error);
+                showConnectionStatus('error', 'Search failed');
+            }
+        }
+        
+        // Enhanced antique store search with broader coverage
+        async function searchNearbyAntiqueStores() {
+            if (!navigator.geolocation) {
+                showConnectionStatus('error', 'Geolocation not supported');
+                return;
+            }
+            
+            showConnectionStatus('info', 'Searching for antique stores...');
+            
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const { latitude, longitude } = position.coords;
+                let allStores = [];
+                
+                // Create a Places service
+                const service = new google.maps.places.PlacesService(document.createElement('div'));
+                
+                // Multiple search requests for comprehensive coverage
+                const searchTypes = [
+                    { keyword: 'antique store', type: ['store'] },
+                    { keyword: 'vintage shop', type: ['store'] },
+                    { keyword: 'collectibles store', type: ['store'] },
+                    { keyword: 'thrift store', type: ['store'] },
+                    { keyword: 'consignment shop', type: ['store'] },
+                    { keyword: 'estate sale company', type: ['store'] }
+                ];
+                
+                let completedSearches = 0;
+                
+                searchTypes.forEach((searchType, index) => {
+                    setTimeout(() => {
+                        const request = {
+                            location: new google.maps.LatLng(latitude, longitude),
+                            radius: 32186, // 20 miles in meters (expanded)
+                            type: searchType.type,
+                            keyword: searchType.keyword
+                        };
+                        
+                        service.nearbySearch(request, (results, status) => {
+                            completedSearches++;
+                            
+                            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                const stores = results.map(place => ({
+                                    id: place.place_id,
+                                    type: 'antique',
+                                    title: place.name,
+                                    description: `${searchType.keyword.charAt(0).toUpperCase() + searchType.keyword.slice(1)} · Rating: ${place.rating || 'N/A'}/5 · ${place.user_ratings_total || 0} reviews`,
+                                    location: {
+                                        lat: place.geometry.location.lat(),
+                                        lng: place.geometry.location.lng(),
+                                        address: place.vicinity
+                                    },
+                                    isGooglePlace: true,
+                                    placeId: place.place_id,
+                                    rating: place.rating,
+                                    priceLevel: place.price_level,
+                                    openNow: place.opening_hours?.open_now,
+                                    category: searchType.keyword
+                                }));
+                                
+                                // Remove duplicates and add to collection
+                                stores.forEach(store => {
+                                    if (!allStores.find(existing => existing.placeId === store.placeId)) {
+                                        allStores.push(store);
+                                    }
+                                });
+                            }
+                            
+                            // Display results after all searches complete
+                            if (completedSearches === searchTypes.length) {
+                                if (allStores.length > 0) {
+                                    // Sort by rating and distance
+                                    allStores.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                                    
+                                    displaySalesOnMap(allStores);
+                                    updateListingsGrid(allStores);
+                                    
+                                    showConnectionStatus('success', `Found ${allStores.length} stores and treasure locations nearby`);
+                                } else {
+                                    showConnectionStatus('error', 'No stores found in this area');
+                                }
+                            }
+                        });
+                    }, index * 1000); // Stagger requests to avoid rate limiting
+                });
+                
+            }, (error) => {
+                showConnectionStatus('error', 'Location access denied');
+            });
+        }
+        
+        async function filterSales() {
+            try {
+                const params = new URLSearchParams({
+                    type: activeFilters.join(',')
+                });
+                
+                if (activeFilters.includes('featured')) {
+                    const result = await apiCall(API_ENDPOINTS.sales.featured);
+                    displaySalesOnMap(result.sales || []);
+                    updateListingsGrid(result.sales || []);
+                } else {
+                    const result = await apiCall(`${API_ENDPOINTS.sales.search}?${params}`);
+                    displaySalesOnMap(result.sales || []);
+                    updateListingsGrid(result.sales || []);
+                }
+            } catch (error) {
+                console.error('Filter failed:', error);
+            }
+        }
+        
+        // ========================================
+        // HELPER FUNCTIONS
+        // ========================================
+        function getColorForType(type) {
+            const colors = {
+                'yard': '#4CAF50',
+                'estate': '#2196F3',
+                'antique': '#FF9800',
+                'garage': '#9C27B0'
+            };
+            return colors[type] || '#667eea';
+        }
+        
+        function getLighterColor(type) {
+            const colors = {
+                'yard': '#66BB6A',
+                'estate': '#42A5F5',
+                'antique': '#FFB74D',
+                'garage': '#AB47BC'
+            };
+            return colors[type] || '#7C88F3';
+        }
+        
+        function getIconForType(type) {
+            const icons = {
+                'yard': '🏠',
+                'estate': '🏛️',
+                'antique': '🏺',
+                'garage': '🚗'
+            };
+            return icons[type] || '📍';
+        }
+        
+        function formatSaleTime(dates) {
+            if (!dates || !dates.startDate) return 'Date TBD';
+            
+            const start = new Date(dates.startDate);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            if (start.toDateString() === today.toDateString()) {
+                return `Today ${dates.startTime || '9AM'}-${dates.endTime || '5PM'}`;
+            } else if (start.toDateString() === tomorrow.toDateString()) {
+                return `Tomorrow ${dates.startTime || '9AM'}-${dates.endTime || '5PM'}`;
+            } else {
+                return `${start.toLocaleDateString()} ${dates.startTime || '9AM'}-${dates.endTime || '5PM'}`;
+            }
+        }
+        
+        function formatDetailTime(dates) {
+            if (!dates) return 'Date and time not available';
+            
+            const start = new Date(dates.startDate);
+            const end = new Date(dates.endDate);
+            
+            const formatDate = (date) => {
+                return date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            };
+            
+            if (start.toDateString() === end.toDateString()) {
+                return `${formatDate(start)}\n${dates.startTime || '9:00 AM'} - ${dates.endTime || '5:00 PM'}`;
+            } else {
+                return `${formatDate(start)} - ${formatDate(end)}\n${dates.startTime || '9:00 AM'} - ${dates.endTime || '5:00 PM'}`;
+            }
+        }
+        
+        function isStartingSoon(sale) {
+            if (!sale.dates || !sale.dates.startDate) return false;
+            
+            const start = new Date(sale.dates.startDate);
+            const now = new Date();
+            const hoursDiff = (start - now) / (1000 * 60 * 60);
+            
+            return hoursDiff >= 0 && hoursDiff <= 24;
+        }
+        
+        function showAllListings() {
+            window.scrollTo({ 
+                top: document.querySelector('.listings-section').offsetTop - 100, 
+                behavior: 'smooth' 
+            });
+        }
+        
+        // ========================================
+        // DEMO DATA
+        // ========================================
+        function loadDemoData() {
+            const demoSales = [
+                {
+                    id: 'demo1',
+                    type: 'estate',
+                    title: 'Victorian Mansion Estate Sale - 100+ Years of Treasures',
+                    description: 'Incredible collection of antiques, vintage furniture, rare books, and collectibles from a historic Victorian estate.',
+                    location: { lat: 40.7128, lng: -74.0060, address: '123 Main St, New York, NY' },
+                    distance: 2.3,
+                    dates: { startDate: new Date(), startTime: '9:00 AM', endTime: '3:00 PM' },
+                    metadata: { featured: true, views: 234, interested: 45 }
+                },
+                {
+                    id: 'demo2',
+                    type: 'yard',
+                    title: 'Massive Moving Sale - Everything Must Go!',
+                    description: 'Tools, electronics, furniture, household items, and more. Priced to sell quickly!',
+                    location: { lat: 40.7580, lng: -73.9855, address: '456 Broadway, New York, NY' },
+                    distance: 0.8,
+                    dates: { startDate: new Date(Date.now() + 86400000), startTime: '7:00 AM', endTime: '2:00 PM' },
+                    metadata: { views: 123, interested: 18 }
+                },
+                {
+                    id: 'demo3',
+                    type: 'antique',
+                    title: 'Grandma\'s Attic Antiques & Curiosities',
+                    description: 'Specializing in mid-century modern, vintage jewelry, and rare collectibles.',
+                    location: { lat: 40.7489, lng: -73.9680, address: '789 5th Ave, New York, NY' },
+                    distance: 1.5,
+                    dates: { startDate: new Date(), startTime: '10:00 AM', endTime: '6:00 PM' },
+                    metadata: { views: 567, interested: 89 }
+                }
+            ];
+            
+            displaySalesOnMap(demoSales);
+            updateListingsGrid(demoSales);
+            document.getElementById('nearbyCount').textContent = demoSales.length;
+            document.getElementById('startingSoon').textContent = '3';
+            document.getElementById('salesCount').textContent = '25';
+        }
+        
+        // ========================================
+        // EVENT LISTENERS
+        // ========================================
+        window.onclick = function(event) {
+            const postModal = document.getElementById('postModal');
+            const detailModal = document.getElementById('detailModal');
+            const storeModal = document.getElementById('storeModal');
+            
+            if (event.target === postModal) {
+                closePostModal();
+            } else if (event.target === detailModal) {
+                closeDetailModal();
+            } else if (event.target === storeModal) {
+                closeStoreModal();
+            }
+        }
+        
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const parallax = document.querySelector('.bg-animation::before');
+            if (parallax) {
+                parallax.style.transform = `translateY(${scrolled * 0.5}px)`;
+            }
+        });
+        
+        // Enter key search
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        // ========================================
+        // CONSOLE WELCOME MESSAGE
+        // ========================================
+        console.log(`
+%c🏺 Welcome to Plundora! 🏺
+%cDiscover hidden treasures across America
+        
+Backend API: ${API_BASE_URL}
+Status: Check the connection indicator
+Version: 1.0.0
+        `, 
+        'color: #FF6B6B; font-size: 20px; font-weight: bold;',
+        'color: #4ECDC4; font-size: 14px;'
+        );
+    </script>
+</body>
+</html>

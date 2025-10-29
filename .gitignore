@@ -6,6 +6,7 @@ yarn-error.log*
 
 # Environment variables
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
@@ -96,6 +97,10 @@ logs
 # Uploaded files
 uploads/*
 !uploads/.gitkeep
+
+# Sensitive files
+*.json
+*.pem
 
 # OS generated files
 .DS_Store
