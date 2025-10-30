@@ -5,8 +5,69 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- US States reference table
+CREATE TABLE IF NOT EXISTS states (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    abbreviation CHAR(2) UNIQUE NOT NULL
+);
+
+INSERT INTO states (name, abbreviation) VALUES
+('Alabama', 'AL'),
+('Alaska', 'AK'),
+('Arizona', 'AZ'),
+('Arkansas', 'AR'),
+('California', 'CA'),
+('Colorado', 'CO'),
+('Connecticut', 'CT'),
+('Delaware', 'DE'),
+('District of Columbia', 'DC'),
+('Florida', 'FL'),
+('Georgia', 'GA'),
+('Hawaii', 'HI'),
+('Idaho', 'ID'),
+('Illinois', 'IL'),
+('Indiana', 'IN'),
+('Iowa', 'IA'),
+('Kansas', 'KS'),
+('Kentucky', 'KY'),
+('Louisiana', 'LA'),
+('Maine', 'ME'),
+('Maryland', 'MD'),
+('Massachusetts', 'MA'),
+('Michigan', 'MI'),
+('Minnesota', 'MN'),
+('Mississippi', 'MS'),
+('Missouri', 'MO'),
+('Montana', 'MT'),
+('Nebraska', 'NE'),
+('Nevada', 'NV'),
+('New Hampshire', 'NH'),
+('New Jersey', 'NJ'),
+('New Mexico', 'NM'),
+('New York', 'NY'),
+('North Carolina', 'NC'),
+('North Dakota', 'ND'),
+('Ohio', 'OH'),
+('Oklahoma', 'OK'),
+('Oregon', 'OR'),
+('Pennsylvania', 'PA'),
+('Rhode Island', 'RI'),
+('South Carolina', 'SC'),
+('South Dakota', 'SD'),
+('Tennessee', 'TN'),
+('Texas', 'TX'),
+('Utah', 'UT'),
+('Vermont', 'VT'),
+('Virginia', 'VA'),
+('Washington', 'WA'),
+('West Virginia', 'WV'),
+('Wisconsin', 'WI'),
+('Wyoming', 'WY')
+ON CONFLICT (abbreviation) DO NOTHING;
+
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -26,7 +87,7 @@ CREATE TABLE users (
 );
 
 -- Stores table
-CREATE TABLE stores (
+CREATE TABLE IF NOT EXISTS stores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     store_name VARCHAR(255) NOT NULL,
@@ -51,7 +112,7 @@ CREATE TABLE stores (
 );
 
 -- Sales table
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -84,7 +145,7 @@ CREATE TABLE sales (
 );
 
 -- Images table
-CREATE TABLE images (
+CREATE TABLE IF NOT EXISTS images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
@@ -98,7 +159,7 @@ CREATE TABLE images (
 );
 
 -- Payments table
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
     buyer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -117,7 +178,7 @@ CREATE TABLE payments (
 );
 
 -- Reviews table
-CREATE TABLE reviews (
+CREATE TABLE IF NOT EXISTS reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     payment_id UUID NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
     reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -133,7 +194,7 @@ CREATE TABLE reviews (
 );
 
 -- Favorites table
-CREATE TABLE favorites (
+CREATE TABLE IF NOT EXISTS favorites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
@@ -142,7 +203,7 @@ CREATE TABLE favorites (
 );
 
 -- Messages table (for buyer-seller communication)
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -153,7 +214,7 @@ CREATE TABLE messages (
 );
 
 -- Categories table (for managing categories)
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL UNIQUE,
     slug VARCHAR(100) NOT NULL UNIQUE,
@@ -166,7 +227,7 @@ CREATE TABLE categories (
 );
 
 -- Search/Analytics tables
-CREATE TABLE search_queries (
+CREATE TABLE IF NOT EXISTS search_queries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     query TEXT NOT NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -175,46 +236,46 @@ CREATE TABLE search_queries (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_email_verification_token ON users(email_verification_token);
-CREATE INDEX idx_users_password_reset_token ON users(password_reset_token);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email_verification_token ON users(email_verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_reset_token);
 
-CREATE INDEX idx_stores_user_id ON stores(user_id);
-CREATE INDEX idx_stores_url_slug ON stores(store_url_slug);
-CREATE INDEX idx_stores_status ON stores(status);
+CREATE INDEX IF NOT EXISTS idx_stores_user_id ON stores(user_id);
+CREATE INDEX IF NOT EXISTS idx_stores_url_slug ON stores(store_url_slug);
+CREATE INDEX IF NOT EXISTS idx_stores_status ON stores(status);
 
-CREATE INDEX idx_sales_store_id ON sales(store_id);
-CREATE INDEX idx_sales_user_id ON sales(user_id);
-CREATE INDEX idx_sales_status ON sales(status);
-CREATE INDEX idx_sales_category ON sales(category);
-CREATE INDEX idx_sales_price ON sales(price);
-CREATE INDEX idx_sales_created_at ON sales(created_at);
-CREATE INDEX idx_sales_location ON sales(location_city, location_state);
-CREATE INDEX idx_sales_featured ON sales(featured);
+CREATE INDEX IF NOT EXISTS idx_sales_store_id ON sales(store_id);
+CREATE INDEX IF NOT EXISTS idx_sales_user_id ON sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_sales_status ON sales(status);
+CREATE INDEX IF NOT EXISTS idx_sales_category ON sales(category);
+CREATE INDEX IF NOT EXISTS idx_sales_price ON sales(price);
+CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_location ON sales(location_city, location_state);
+CREATE INDEX IF NOT EXISTS idx_sales_featured ON sales(featured);
 
-CREATE INDEX idx_images_sale_id ON images(sale_id);
-CREATE INDEX idx_images_is_primary ON images(is_primary);
+CREATE INDEX IF NOT EXISTS idx_images_sale_id ON images(sale_id);
+CREATE INDEX IF NOT EXISTS idx_images_is_primary ON images(is_primary);
 
-CREATE INDEX idx_payments_sale_id ON payments(sale_id);
-CREATE INDEX idx_payments_buyer_id ON payments(buyer_id);
-CREATE INDEX idx_payments_seller_id ON payments(seller_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_stripe_payment_intent_id ON payments(stripe_payment_intent_id);
+CREATE INDEX IF NOT EXISTS idx_payments_sale_id ON payments(sale_id);
+CREATE INDEX IF NOT EXISTS idx_payments_buyer_id ON payments(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_seller_id ON payments(seller_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_stripe_payment_intent_id ON payments(stripe_payment_intent_id);
 
-CREATE INDEX idx_reviews_store_id ON reviews(store_id);
-CREATE INDEX idx_reviews_reviewer_id ON reviews(reviewer_id);
-CREATE INDEX idx_reviews_reviewee_id ON reviews(reviewee_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_store_id ON reviews(store_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_reviewer_id ON reviews(reviewer_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_reviewee_id ON reviews(reviewee_id);
 
-CREATE INDEX idx_favorites_user_id ON favorites(user_id);
-CREATE INDEX idx_favorites_sale_id ON favorites(sale_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_sale_id ON favorites(sale_id);
 
-CREATE INDEX idx_messages_sale_id ON messages(sale_id);
-CREATE INDEX idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX idx_messages_receiver_id ON messages(receiver_id);
-CREATE INDEX idx_messages_is_read ON messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_messages_sale_id ON messages(sale_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read);
 
-CREATE INDEX idx_categories_parent_id ON categories(parent_id);
-CREATE INDEX idx_categories_slug ON categories(slug);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
 
 -- Triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -242,7 +303,8 @@ INSERT INTO categories (name, slug, description) VALUES
 ('Jewelry', 'jewelry', 'Jewelry, watches, and accessories'),
 ('Art & Crafts', 'art-crafts', 'Artwork, crafts, and creative items'),
 ('Baby & Kids', 'baby-kids', 'Children clothing, toys, and baby items'),
-('Beauty & Health', 'beauty-health', 'Cosmetics, skincare, and health products');
+('Beauty & Health', 'beauty-health', 'Cosmetics, skincare, and health products')
+ON CONFLICT (slug) DO NOTHING;
 
 -- Insert subcategories for Fashion
 INSERT INTO categories (name, slug, description, parent_id) VALUES
@@ -250,4 +312,5 @@ INSERT INTO categories (name, slug, description, parent_id) VALUES
 ('Men''s Clothing', 'mens-clothing', 'Clothing for men', (SELECT id FROM categories WHERE slug = 'fashion')),
 ('Shoes', 'shoes', 'Footwear for all', (SELECT id FROM categories WHERE slug = 'fashion')),
 ('Bags & Accessories', 'bags-accessories', 'Handbags, purses, and accessories', (SELECT id FROM categories WHERE slug = 'fashion')),
-('Vintage Fashion', 'vintage-fashion', 'Vintage and retro clothing', (SELECT id FROM categories WHERE slug = 'fashion'));
+('Vintage Fashion', 'vintage-fashion', 'Vintage and retro clothing', (SELECT id FROM categories WHERE slug = 'fashion'))
+ON CONFLICT (slug) DO NOTHING;

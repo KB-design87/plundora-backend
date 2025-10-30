@@ -102,6 +102,10 @@ uploads/*
 *.json
 *.pem
 
+# Frontend build artifacts
+plundora-frontend/dist/
+plundora-frontend/*.zip
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -140,3 +144,5 @@ dist/
 
 # Local development files
 local.*
+.agents/
+start-agents.sh

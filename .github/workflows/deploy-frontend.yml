@@ -1,0 +1,40 @@
+name: Deploy Frontend to GoDaddy
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'plundora-frontend/**'
+      - 'scripts/build-frontend.js'
+      - '.github/workflows/deploy-frontend.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build static frontend bundle
+        run: npm run build:frontend
+
+      - name: Deploy via SFTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.GODADDY_FTP_HOST }}
+          username: ${{ secrets.GODADDY_FTP_USER }}
+          password: ${{ secrets.GODADDY_FTP_PASSWORD }}
+          protocol: ftps
+          port: ${{ secrets.GODADDY_FTP_PORT }}
+          local-dir: plundora-frontend/dist
+          server-dir: ${{ secrets.GODADDY_FTP_ROOT }}
+          dangerous-clean-slate: true
+

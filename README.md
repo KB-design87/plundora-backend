@@ -119,40 +119,9 @@ Navigate to `http://localhost:3000`
 
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
-
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/plundora
-
-# Stripe Configuration
-STRIPE_PUBLIC_KEY=pk_test_your_public_key_here
-STRIPE_SECRET_KEY=sk_test_your_secret_key_here
-
-# API Configuration
-API_BASE_URL=http://localhost:3000/api
-
-# Map Configuration
-MAP_DEFAULT_LAT=40.7614
-MAP_DEFAULT_LNG=-73.9776
-MAP_DEFAULT_ZOOM=13
-
-# Email Configuration (Optional)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-
-# AWS S3 Configuration (Optional)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_BUCKET_NAME=plundora-images
-AWS_REGION=us-east-1
-```
+- Duplicate `config/example.env` to `.env` for local development and fill in the required secrets.
+- Keep production secrets (Stripe, Google Maps, SendGrid, etc.) in your hosting provider’s Environment tab. Ensure `DATABASE_URL` points to the Render Postgres instance.
+- Optional observability keys (`SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`) are available for error tracking when you’re ready to enable them.
 
 ### Stripe Setup
 
@@ -165,30 +134,29 @@ AWS_REGION=us-east-1
 
 ```
 plundora/
-├── public_html/
-│   ├── index.html          # Main application file
-│   ├── css/
-│   │   └── styles.css      # Custom styles
-│   ├── js/
-│   │   └── app.js          # Application logic
-│   └── images/
-│       └── logo.png        # Application assets
-├── backend/
-│   ├── server.js           # Express server
-│   ├── routes/
-│   │   ├── api.js          # API routes
-│   │   └── payments.js     # Stripe endpoints
-│   ├── models/
-│   │   └── Sale.js         # Database models
-│   └── middleware/
-│       └── auth.js         # Authentication
+├── config/
+│   └── example.env         # Environment variable template
 ├── database/
-│   ├── migrations/         # Database migrations
-│   └── seeds/              # Sample data
-├── .env.example            # Environment template
-├── package.json            # Dependencies
-├── README.md               # This file
-└── LICENSE                 # MIT License
+│   └── schema.sql          # Full PostgreSQL schema & seed inserts
+├── db/
+│   └── connection.js       # Database connection pool helper
+├── middleware/
+│   ├── auth.js
+│   └── errorHandler.js
+├── plundora-frontend/
+│   └── index.html (template injected via build script)
+├── routes/
+│   ├── auth.js
+│   ├── payments.js
+│   ├── sales.js
+│   └── stores.js
+├── scripts/
+│   ├── build-frontend.js   # Injects env keys and copies assets
+│   ├── migrate.js          # Applies database schema
+│   └── seed-demo.js        # Loads demo user/store/sale
+├── server.js               # Express bootstrap
+├── package.json
+└── README.md
 ```
 
 ## Usage
@@ -227,6 +195,15 @@ npm run build
 ```bash
 npm test
 ```
+
+4. **Apply schema & seed demo data**
+```bash
+# Ensure DATABASE_URL is set before running
+npm run migrate
+npm run seed:demo
+```
+
+> To target the hosted Render database from your machine, export the connection string first: `export DATABASE_URL="postgresql://user:pass@host:5432/db"`. You can also open the Render Shell for the web service and run the commands there without exposing credentials locally.
 
 4. **Lint code**
 ```bash
@@ -405,6 +382,11 @@ Enable debug mode by setting:
 ```bash
 DEBUG=true npm run dev
 ```
+
+## Monitoring & Alerts
+
+- **Sentry**: Set the `SENTRY_DSN` environment variable (and optionally `SENTRY_TRACES_SAMPLE_RATE`) to enable automatic error tracking. All unhandled exceptions will be captured and sent to Sentry once configured.
+- **Render Alerts**: Configure failure and latency alerts in the Render dashboard to get notified if deployments or health checks start failing.
 
 ## Support
 

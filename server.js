@@ -6,6 +6,15 @@ const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const Sentry = require('@sentry/node');
+
+const enableSentry = Boolean(process.env.SENTRY_DSN);
+if (enableSentry) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development'
+  });
+}
 
 // Simple startup
 console.log('🚀 Starting Plundora Backend...');
@@ -31,6 +40,10 @@ const storesRoutes = require('./routes/stores');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+
+if (enableSentry) {
+  app.use(Sentry.Handlers.requestHandler());
+}
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
@@ -151,6 +164,10 @@ app.use('*', (req, res) => {
 });
 
 // Error handling middleware
+if (enableSentry) {
+  app.use(Sentry.Handlers.errorHandler());
+}
+
 app.use(errorHandler);
 
 // Graceful shutdown
