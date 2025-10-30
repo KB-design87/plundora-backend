@@ -10,11 +10,17 @@ async function runMigration() {
     const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
     const schema = await fs.readFile(schemaPath, 'utf8');
 
+    // Strip one-line comments to avoid dropping statements when splitting
+    const cleanedSchema = schema
+      .split('\n')
+      .map((line) => (line.trim().startsWith('--') ? '' : line))
+      .join('\n');
+
     // Split into individual statements
-    const statements = schema
+    const statements = cleanedSchema
       .split(';')
       .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+      .filter(stmt => stmt.length > 0);
 
     console.log(`📄 Found ${statements.length} SQL statements to execute`);
 
