@@ -10,46 +10,8 @@ async function runMigration() {
     const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
     const schema = await fs.readFile(schemaPath, 'utf8');
 
-    // Strip one-line comments to avoid dropping statements when splitting
-    const cleanedSchema = schema
-      .split('\n')
-      .map((line) => (line.trim().startsWith('--') ? '' : line))
-      .join('\n');
-
-    // Split into individual statements
-    const statements = cleanedSchema
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0);
-
-    console.log(`📄 Found ${statements.length} SQL statements to execute`);
-
-    // Execute each statement
-    for (let i = 0; i < statements.length; i++) {
-      const statement = statements[i];
-
-      if (statement.length === 0) continue;
-
-      try {
-        console.log(`⚡ Executing statement ${i + 1}/${statements.length}`);
-        await db.query(statement);
-      } catch (error) {
-        // Ignore errors for CREATE EXTENSION and CREATE OR REPLACE statements
-        // as they might already exist
-        if (
-          error.code === '42710' || // duplicate_object
-          error.code === '42P07' || // duplicate_table
-          error.code === '42723'    // duplicate_function
-        ) {
-          console.log(`⚠️  Skipping statement ${i + 1} (already exists)`);
-          continue;
-        }
-
-        console.error(`❌ Error executing statement ${i + 1}:`, error.message);
-        console.error('Statement:', statement.substring(0, 200) + '...');
-        throw error;
-      }
-    }
+    console.log('📄 Executing schema.sql');
+    await db.query(schema);
 
     console.log('✅ Database migration completed successfully!');
 
