@@ -139,6 +139,7 @@ const healthCheckHandler = async (req, res) => {
 
 app.get('/health', healthCheckHandler);
 app.get('/api/health', healthCheckHandler);
+app.get('/api/test', healthCheckHandler);
 
 // API routes
 app.use('/api/auth', authLimiter, authRoutes);

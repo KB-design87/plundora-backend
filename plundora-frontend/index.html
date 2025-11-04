@@ -1602,8 +1602,8 @@
         // API ENDPOINTS
         // ========================================
         const API_ENDPOINTS = {
-            test: `${API_BASE_URL}/api/test`,
-            createPayment: `${API_BASE_URL}/api/create-payment-intent`,
+            test: `${API_BASE_URL}/api/health`,
+            createPayment: `${API_BASE_URL}/api/payments/create-payment-intent`,
             sales: {
                 nearby: `${API_BASE_URL}/api/sales/nearby`,
                 search: `${API_BASE_URL}/api/sales/search`,
@@ -1632,6 +1632,7 @@
         let currentSaleId = null;
         let currentView = 'grid';
         let uploadedFiles = [];
+        window.demoSalesData = null;
         
         // US States data
         const usStates = [
@@ -1738,6 +1739,7 @@
                 const data = await apiCall(API_ENDPOINTS.test);
                 console.log('✅ Backend connected:', data);
                 showConnectionStatus('success', 'Connected to backend');
+                window.demoSalesData = null;
                 
                 // Load initial sales data
                 if (navigator.geolocation) {
@@ -2163,6 +2165,26 @@
             document.body.style.overflow = 'hidden';
             
             try {
+                if (window.demoSalesData) {
+                    const demoSale = window.demoSalesData.find(sale => sale.id === id);
+                    if (demoSale) {
+                        document.getElementById('detailTitle').textContent = demoSale.title || 'Untitled Sale';
+                        document.getElementById('detailType').textContent = `${getIconForType(demoSale.type)} ${demoSale.type ? demoSale.type.charAt(0).toUpperCase() + demoSale.type.slice(1) : 'Sale'}`;
+                        document.getElementById('detailViews').textContent = demoSale.metadata?.views || 0;
+                        document.getElementById('detailInterested').textContent = demoSale.metadata?.interested || 0;
+                        document.getElementById('detailDistance').textContent = demoSale.distance ? demoSale.distance.toFixed(1) : '0';
+                        document.getElementById('detailWhen').textContent = formatDetailTime({
+                            startDate: demoSale.dates?.startDate,
+                            endDate: demoSale.dates?.endDate || demoSale.dates?.startDate,
+                            startTime: demoSale.dates?.startTime,
+                            endTime: demoSale.dates?.endTime
+                        });
+                        document.getElementById('detailWhere').textContent = demoSale.location?.address || 'Address not available';
+                        document.getElementById('detailDescription').textContent = demoSale.description || 'No description available';
+                        return;
+                    }
+                }
+
                 const sale = await apiCall(API_ENDPOINTS.sales.byId(id));
                 
                 document.getElementById('detailTitle').textContent = sale.title || 'Untitled Sale';
@@ -2715,6 +2737,7 @@ New York, NY 10001`);
             document.getElementById('nearbyCount').textContent = demoSales.length;
             document.getElementById('startingSoon').textContent = '3';
             document.getElementById('salesCount').textContent = '25';
+            window.demoSalesData = demoSales;
         }
         
         // ========================================
