@@ -388,6 +388,13 @@ DEBUG=true npm run dev
 - **Sentry**: Set the `SENTRY_DSN` environment variable (and optionally `SENTRY_TRACES_SAMPLE_RATE`) to enable automatic error tracking. All unhandled exceptions will be captured and sent to Sentry once configured.
 - **Render Alerts**: Configure failure and latency alerts in the Render dashboard to get notified if deployments or health checks start failing.
 
+## Production Checklist
+
+- [x] Backend redeployed with live Stripe keys and verified via `/api/health`
+- [ ] Frontend uploaded to GoDaddy with fresh `plundora-frontend-dist.zip`
+- [ ] Live payment flow tested (Stripe dashboard shows event)
+- [ ] SFTP credentials stored in GitHub secrets to enable automatic frontend deploy (optional)
+
 ## Support
 
 - 📧 Email: support@plundora.com

@@ -1746,9 +1746,7 @@
                     getCurrentLocation();
                 } else {
                     // Load demo sales if no geolocation
-                    const salesData = await apiCall(API_ENDPOINTS.sales.nearby);
-                    displaySalesOnMap(salesData.sales || []);
-                    updateListingsGrid(salesData.sales || []);
+                    loadDemoData();
                 }
                 
                 return true;
@@ -1891,21 +1889,26 @@
         
         async function loadNearbySales(lat, lng) {
             try {
-                const params = new URLSearchParams({
-                    lat: lat,
-                    lng: lng,
-                    radius: 50
-                });
-                
-                const response = await apiCall(`${API_ENDPOINTS.sales.nearby}?${params}`);
-                displaySalesOnMap(response.sales || []);
-                updateListingsGrid(response.sales || []);
-                
-                // Update stats
-                document.getElementById('salesCount').textContent = response.total || '0';
-                document.getElementById('nearbyCount').textContent = response.sales ? response.sales.length : '0';
-                document.getElementById('startingSoon').textContent = 
-                    response.sales ? response.sales.filter(s => isStartingSoon(s)).length : '0';
+                try {
+                    const params = new URLSearchParams({
+                        lat: lat,
+                        lng: lng,
+                        radius: 50
+                    });
+                    
+                    const response = await apiCall(`${API_ENDPOINTS.sales.nearby}?${params}`);
+                    displaySalesOnMap(response.sales || []);
+                    updateListingsGrid(response.sales || []);
+                    
+                    // Update stats
+                    document.getElementById('salesCount').textContent = response.total || '0';
+                    document.getElementById('nearbyCount').textContent = response.sales ? response.sales.length : '0';
+                    document.getElementById('startingSoon').textContent = 
+                        response.sales ? response.sales.filter(s => isStartingSoon(s)).length : '0';
+                } catch (error) {
+                    console.error('Failed to load real sales, falling back to demo:', error);
+                    loadDemoData();
+                }
             } catch (error) {
                 console.error('Failed to load sales:', error);
                 loadDemoData();
