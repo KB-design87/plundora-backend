@@ -30,6 +30,7 @@ Plundora is a modern web application that helps users discover and share informa
 - 📍 **Location-Based Search** - Find sales within a specified radius of your location
 - 🔍 **Advanced Filtering** - Filter by sale type, date, distance, and keywords
 - 💳 **Stripe Integration** - Secure payment processing for posting listings
+- 🆓 **60-Day Store Trials** - Automated Stripe subscriptions with trial reminders
 - 📱 **Responsive Design** - Works seamlessly on desktop, tablet, and mobile devices
 - 🎨 **Modern Dark Theme** - Eye-catching dark UI with smooth animations
 - 📸 **Image Uploads** - Support for multiple images per listing (up to 5)
@@ -43,7 +44,7 @@ Plundora is a modern web application that helps users discover and share informa
 - 💬 In-app messaging between buyers and sellers
 - 🏷️ Saved searches and favorites
 - 📊 Analytics dashboard for sellers
-- 🤝 Social sharing integration
+- 🤝 Social sharing integration (Facebook Page linking)
 
 ## Tech Stack
 
@@ -129,6 +130,21 @@ Navigate to `http://localhost:3000`
 2. Get your API keys from the Stripe Dashboard
 3. Add them to your `.env` file
 4. Configure webhook endpoints in Stripe Dashboard
+   - Ensure the endpoint handles `payment_intent.*`, `customer.subscription.*`, and `invoice.payment_failed` events.
+
+### Store Subscriptions (60-Day Trial)
+
+- Create a recurring price in Stripe for store memberships and set the ID in `STRIPE_STORE_PRICE_ID`.
+- Optional: adjust the trial window by setting `STRIPE_STORE_TRIAL_DAYS` (defaults to 60).
+- When a merchant creates a store, the backend automatically creates/links a Stripe customer, starts the subscription in trial mode, and stores the trial start/end dates in the `stores` table.
+- Stripe webhook events (`customer.subscription.*`, `invoice.payment_failed`) keep `subscription_status`, `trial_starts_at`, `trial_ends_at`, and `subscription_cancel_at` in sync.
+
+### Google AdSense Setup
+
+1. Add `plundora.com` to your AdSense account and wait for approval.
+2. Once approved, set `ADSENSE_PUBLISHER_ID` (full `ca-pub-XXXX` value) and optional ad slot IDs (`ADSENSE_SLOT_TOP`, `ADSENSE_SLOT_RECTANGLE`).
+3. The frontend build script injects these values and removes AdSense blocks automatically if the publisher ID is missing.
+4. Remember to comply with AdSense policies (consent banner, content guidelines) before enabling ads in production.
 
 ## Project Structure
 
@@ -325,13 +341,13 @@ heroku run npm run migrate
 
 ### Revenue Streams
 
-1. **Listing Fees** - $7.99 per sale posting
-2. **Premium Features** (Planned)
+1. **Listing Fees** - $7.99 per sale posting (processed via Stripe)
+2. **Display Ads** - Google AdSense placements in the homepage hero and mid-feed slots
+3. **Premium Features** (Planned)
    - Featured listings - $19.99
    - Extended listing duration - $9.99
    - Analytics dashboard - $14.99/month
-3. **Mobile App** - $2.99 on App Store
-4. **Ads** - Local business advertising
+4. **Mobile App** - $2.99 on App Store
 
 ### Payment Processing
 
@@ -339,6 +355,7 @@ heroku run npm run migrate
 - Automatic payouts to your bank account
 - Support for international payments
 - PCI compliant
+- Store owners receive a 60-day free trial; Stripe subscriptions transition automatically afterward.
 
 ## Contributing
 

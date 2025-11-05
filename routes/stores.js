@@ -5,10 +5,58 @@ const sharp = require('sharp');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+
 const db = require('../db/connection');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+const STORE_PUBLIC_FIELDS = [
+  's.id',
+  's.user_id',
+  's.store_name',
+  's.store_description',
+  's.store_image_url',
+  's.store_url_slug',
+  's.location_city',
+  's.location_state',
+  's.location_country',
+  's.contact_email',
+  's.contact_phone',
+  's.social_instagram',
+  's.social_facebook',
+  's.social_website',
+  's.rating',
+  's.total_reviews',
+  's.total_sales',
+  's.is_verified',
+  's.status',
+  's.subscription_status',
+  's.trial_starts_at',
+  's.trial_ends_at',
+  's.subscription_cancel_at',
+  's.facebook_page_id',
+  's.facebook_connected_at',
+  's.created_at',
+  's.updated_at'
+];
+
+const STORE_OWNER_FIELDS = [...STORE_PUBLIC_FIELDS, 's.stripe_subscription_id'];
+
+const sanitizeStore = (store) => {
+  if (!store) {
+    return store;
+  }
+
+  const {
+    facebook_access_token,
+    stripe_customer_id,
+    ...safeStore
+  } = store;
+
+  return safeStore;
+};
 
 // Multer configuration for store images
 const storage = multer.memoryStorage();
@@ -159,7 +207,7 @@ router.get('/', validateStoreQuery, optionalAuth, async (req, res) => {
 
     const query = `
       SELECT
-        s.*,
+        ${STORE_PUBLIC_FIELDS.join(',\n        ')},
         u.first_name as owner_first_name,
         u.last_name as owner_last_name,
         COUNT(DISTINCT sales.id) FILTER (WHERE sales.status = 'active') as active_listings
@@ -175,6 +223,7 @@ router.get('/', validateStoreQuery, optionalAuth, async (req, res) => {
     queryParams.push(limit, offset);
 
     const result = await db.query(query, queryParams);
+    const stores = result.rows.map(sanitizeStore);
 
     // Get total count for pagination
     const countQuery = `
@@ -189,7 +238,7 @@ router.get('/', validateStoreQuery, optionalAuth, async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows,
+      data: stores,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -213,7 +262,7 @@ router.get('/:slug', optionalAuth, async (req, res) => {
 
     const query = `
       SELECT
-        s.*,
+        ${STORE_PUBLIC_FIELDS.join(',\n        ')},
         u.first_name as owner_first_name,
         u.last_name as owner_last_name,
         u.email as owner_email,
@@ -235,7 +284,7 @@ router.get('/:slug', optionalAuth, async (req, res) => {
       });
     }
 
-    const store = result.rows[0];
+    const store = sanitizeStore(result.rows[0]);
 
     // Get recent reviews
     const reviewsQuery = `
@@ -339,6 +388,83 @@ router.post('/', authenticateToken, upload.single('storeImage'), validateStore, 
 
     const store = storeResult.rows[0];
 
+    // Attach subscription with trial if Stripe is configured
+    if (stripe && process.env.STRIPE_STORE_PRICE_ID) {
+      try {
+        const trialDays = parseInt(process.env.STRIPE_STORE_TRIAL_DAYS || '60', 10);
+
+        const userResult = await db.query(
+          'SELECT email, first_name, last_name, stripe_customer_id FROM users WHERE id = $1',
+          [req.user.id]
+        );
+
+        const userRecord = userResult.rows[0];
+        if (!userRecord) {
+          throw new Error('User record missing for Stripe subscription setup');
+        }
+        let stripeCustomerId = userRecord.stripe_customer_id;
+
+        if (!stripeCustomerId) {
+          const customer = await stripe.customers.create({
+            email: userRecord.email,
+            name: `${userRecord.first_name || ''} ${userRecord.last_name || ''}`.trim() || undefined,
+            metadata: {
+              user_id: req.user.id,
+            }
+          });
+
+          stripeCustomerId = customer.id;
+          await db.query(
+            'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
+            [stripeCustomerId, req.user.id]
+          );
+        }
+
+        const subscription = await stripe.subscriptions.create({
+          customer: stripeCustomerId,
+          items: [
+            {
+              price: process.env.STRIPE_STORE_PRICE_ID,
+            }
+          ],
+          trial_period_days: trialDays,
+          metadata: {
+            store_id: store.id,
+            user_id: req.user.id,
+          }
+        });
+
+        const trialStartsAt = subscription.trial_start ? new Date(subscription.trial_start * 1000) : new Date();
+        const trialEndsAt = subscription.trial_end ? new Date(subscription.trial_end * 1000) : new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+
+        await db.query(
+          `UPDATE stores
+           SET stripe_customer_id = $1,
+               stripe_subscription_id = $2,
+               subscription_status = $3,
+               trial_starts_at = $4,
+               trial_ends_at = $5
+           WHERE id = $6`,
+          [
+            stripeCustomerId,
+            subscription.id,
+            subscription.status,
+            trialStartsAt,
+            trialEndsAt,
+            store.id
+          ]
+        );
+
+        store.stripe_customer_id = stripeCustomerId;
+        store.stripe_subscription_id = subscription.id;
+        store.subscription_status = subscription.status;
+        store.trial_starts_at = trialStartsAt;
+        store.trial_ends_at = trialEndsAt;
+      } catch (subscriptionError) {
+        console.error('Error starting Stripe trial for store:', subscriptionError);
+      }
+    }
+
     // Process and save store image if provided
     if (req.file) {
       try {
@@ -354,9 +480,11 @@ router.post('/', authenticateToken, upload.single('storeImage'), validateStore, 
       }
     }
 
+    const responseStore = sanitizeStore(store);
+
     res.status(201).json({
       success: true,
-      data: store
+      data: responseStore
     });
   } catch (error) {
     console.error('Error creating store:', error);
@@ -467,9 +595,11 @@ router.put('/:id', authenticateToken, upload.single('storeImage'), validateStore
       }
     }
 
+    const sanitizedStore = sanitizeStore(store);
+
     res.json({
       success: true,
-      data: store
+      data: sanitizedStore
     });
   } catch (error) {
     console.error('Error updating store:', error);
@@ -684,7 +814,7 @@ router.get('/my/store', authenticateToken, async (req, res) => {
   try {
     const query = `
       SELECT
-        s.*,
+        ${STORE_OWNER_FIELDS.join(',\n        ')},
         COUNT(DISTINCT sales.id) FILTER (WHERE sales.status = 'active') as active_listings,
         COUNT(DISTINCT sales.id) FILTER (WHERE sales.status = 'sold') as sold_listings
       FROM stores s
@@ -702,9 +832,11 @@ router.get('/my/store', authenticateToken, async (req, res) => {
       });
     }
 
+    const store = sanitizeStore(result.rows[0]);
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: store
     });
   } catch (error) {
     console.error('Error fetching user store:', error);

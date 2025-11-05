@@ -37,6 +37,9 @@ async function build() {
   const googleMapsKey = await ensureEnvVar('GOOGLE_MAPS_API_KEY');
   const stripePublicKey = await ensureEnvVar('STRIPE_PUBLISHABLE_KEY');
   const apiBaseUrl = process.env.FRONTEND_API_BASE_URL || process.env.API_BASE_URL || 'https://plundora.onrender.com';
+  const adsensePublisherId = process.env.ADSENSE_PUBLISHER_ID || '';
+  const adsenseSlotTop = process.env.ADSENSE_SLOT_TOP || '';
+  const adsenseSlotRectangle = process.env.ADSENSE_SLOT_RECTANGLE || '';
 
   const templatePath = path.join(frontendDir, 'index.html');
   const template = await fs.readFile(templatePath, 'utf8');
@@ -44,10 +47,29 @@ async function build() {
   await fs.rm(distDir, { recursive: true, force: true });
   await fs.mkdir(distDir, { recursive: true });
 
-  const transformed = template
-    .replace(/\{\{GOOGLE_MAPS_API_KEY\}\}/g, googleMapsKey)
-    .replace(/\{\{STRIPE_PUBLIC_KEY\}\}/g, stripePublicKey)
-    .replace(/\{\{API_BASE_URL\}\}/g, apiBaseUrl);
+  let transformed = template;
+
+  if (!adsensePublisherId) {
+    console.warn('⚠️  ADSENSE_PUBLISHER_ID not set; stripping AdSense blocks from build output.');
+    transformed = transformed.replace(/<!--ADSENSE_BLOCK_START-->[\s\S]*?<!--ADSENSE_BLOCK_END-->/g, '');
+  } else {
+    transformed = transformed
+      .replace(/<!--ADSENSE_BLOCK_START-->/g, '')
+      .replace(/<!--ADSENSE_BLOCK_END-->/g, '');
+  }
+
+  const replacements = new Map([
+    ['GOOGLE_MAPS_API_KEY', googleMapsKey],
+    ['STRIPE_PUBLIC_KEY', stripePublicKey],
+    ['API_BASE_URL', apiBaseUrl],
+    ['ADSENSE_PUBLISHER_ID', adsensePublisherId],
+    ['ADSENSE_SLOT_TOP', adsenseSlotTop],
+    ['ADSENSE_SLOT_RECTANGLE', adsenseSlotRectangle],
+  ]);
+
+  for (const [placeholder, value] of replacements) {
+    transformed = transformed.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'), value);
+  }
 
   await fs.writeFile(path.join(distDir, 'index.html'), transformed, 'utf8');
 

@@ -83,8 +83,12 @@ CREATE TABLE IF NOT EXISTS users (
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'deactivated')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP
+    last_login TIMESTAMP,
+    stripe_customer_id VARCHAR(255)
 );
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
 
 -- Stores table
 CREATE TABLE IF NOT EXISTS stores (
@@ -107,9 +111,29 @@ CREATE TABLE IF NOT EXISTS stores (
     total_sales INTEGER DEFAULT 0,
     is_verified BOOLEAN DEFAULT false,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'pending')),
+    stripe_customer_id VARCHAR(255),
+    stripe_subscription_id VARCHAR(255),
+    subscription_status VARCHAR(50) DEFAULT 'trialing',
+    trial_starts_at TIMESTAMP,
+    trial_ends_at TIMESTAMP,
+    subscription_cancel_at TIMESTAMP,
+    facebook_page_id VARCHAR(255),
+    facebook_access_token TEXT,
+    facebook_connected_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE stores
+    ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'trialing',
+    ADD COLUMN IF NOT EXISTS trial_starts_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS subscription_cancel_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS facebook_page_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS facebook_access_token TEXT,
+    ADD COLUMN IF NOT EXISTS facebook_connected_at TIMESTAMP;
 
 -- Sales table
 CREATE TABLE IF NOT EXISTS sales (
@@ -243,6 +267,8 @@ CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_rese
 CREATE INDEX IF NOT EXISTS idx_stores_user_id ON stores(user_id);
 CREATE INDEX IF NOT EXISTS idx_stores_url_slug ON stores(store_url_slug);
 CREATE INDEX IF NOT EXISTS idx_stores_status ON stores(status);
+CREATE INDEX IF NOT EXISTS idx_stores_subscription_id ON stores(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_stores_trial_ends_at ON stores(trial_ends_at);
 
 CREATE INDEX IF NOT EXISTS idx_sales_store_id ON sales(store_id);
 CREATE INDEX IF NOT EXISTS idx_sales_user_id ON sales(user_id);
@@ -285,6 +311,12 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP TRIGGER IF EXISTS update_stores_updated_at ON stores;
+DROP TRIGGER IF EXISTS update_sales_updated_at ON sales;
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
+DROP TRIGGER IF EXISTS update_reviews_updated_at ON reviews;
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_stores_updated_at BEFORE UPDATE ON stores FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

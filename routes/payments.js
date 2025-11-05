@@ -163,6 +163,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       case 'payment_intent.canceled':
         await handlePaymentCanceled(event.data.object);
         break;
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await handleSubscriptionEvent(event.type, event.data.object);
+        break;
+      case 'invoice.payment_failed':
+        await handleSubscriptionInvoiceFailure(event.data.object);
+        break;
       default:
         console.log(`Unhandled event type ${event.type}`);
     }
@@ -245,6 +253,79 @@ async function handlePaymentCanceled(paymentIntent) {
     console.log(`Payment canceled for sale ${paymentIntent.metadata.saleId}`);
   } catch (error) {
     console.error('Error handling payment cancellation:', error);
+  }
+}
+
+// Handle subscription lifecycle events
+async function handleSubscriptionEvent(eventType, subscription) {
+  try {
+    const trialStartsAt = subscription.trial_start ? new Date(subscription.trial_start * 1000) : null;
+    const trialEndsAt = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null;
+    const cancelAt = subscription.cancel_at ? new Date(subscription.cancel_at * 1000) : null;
+    const status = subscription.status || (eventType === 'customer.subscription.deleted' ? 'canceled' : null);
+    const storeId = subscription.metadata && subscription.metadata.store_id ? subscription.metadata.store_id : null;
+
+    const params = [
+      subscription.customer,
+      subscription.id,
+      status,
+      trialStartsAt,
+      trialEndsAt,
+      cancelAt
+    ];
+
+    let query = `UPDATE stores
+      SET stripe_customer_id = $1,
+          stripe_subscription_id = $2,
+          subscription_status = COALESCE($3, subscription_status),
+          trial_starts_at = COALESCE($4, trial_starts_at),
+          trial_ends_at = COALESCE($5, trial_ends_at),
+          subscription_cancel_at = $6,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE stripe_subscription_id = $2`;
+
+    let values = params;
+
+    if (storeId) {
+      query = `UPDATE stores
+        SET stripe_customer_id = $1,
+            stripe_subscription_id = $2,
+            subscription_status = COALESCE($3, subscription_status),
+            trial_starts_at = COALESCE($4, trial_starts_at),
+            trial_ends_at = COALESCE($5, trial_ends_at),
+            subscription_cancel_at = $6,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $7`;
+      values = [...params, storeId];
+    }
+
+    const result = await db.query(query, values);
+
+    if (result.rowCount === 0 && !storeId) {
+      console.warn('Subscription event received but no store matched subscription ID', subscription.id);
+    }
+  } catch (error) {
+    console.error('Error handling subscription event:', error);
+  }
+}
+
+async function handleSubscriptionInvoiceFailure(invoice) {
+  try {
+    if (!invoice.subscription) {
+      return;
+    }
+
+    await db.query(
+      `UPDATE stores
+       SET subscription_status = 'past_due',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE stripe_subscription_id = $1`,
+      [invoice.subscription]
+    );
+
+    console.warn(`Invoice payment failed for subscription ${invoice.subscription}`);
+  } catch (error) {
+    console.error('Error handling subscription invoice failure:', error);
   }
 }
 
